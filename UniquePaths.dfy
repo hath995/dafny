@@ -377,30 +377,54 @@ lemma factorialSeq(n: nat)
 // {
 
 // }
+//5! = 5*4*3*2*1
+//3! = 3*2*1
+//5!/(5-2)! == 5*4
+//fseq(5,2-1)==[4,5] 
+//factorial(5) == fseq(5,4) == [1,2,3,4,5]
+//factorial(3) == fseq(3,2) == [1,2,3]
+//5!/(5-(2-1)) == 5!/(5-1)! == 5/4! = fseq(5,2-2) == [5]
+
+lemma ProductSeqSubseq(n: nat, k: nat) 
+  requires n >= 0
+  requires 0 <= k < n
+  ensures ProductSeq(fseq(n,n-1)) == ProductSeq(fseq(n-k,(n-k)-1)) + ProductSeq(fseq(n,k-1));
+
 
 // lemma factorialDivison(n: nat, k: nat)
 //   requires n >= 0
-//   requires 1 <= k < n
-//   ensures factorial(n)/factorial(n-k) == ProductSet(fset(n, k-1))
+//   requires 0 <= k < n
+//   ensures factorial(n)/factorial(n-k) == ProductSeq(fseq(n, k-1))
 // {
-//   if k == 1 {
-//     assert fset(n,k-1) == {n};
-//     assert ProductSet(fset(n,k-1)) == n;
-//     calc {
-//         factorial(n)/factorial(n-k);
-//         ==
-//         factorial(n)/factorial(n-1);
-//         == {factorialFacts(n);}
-//         n;
-//         ==
-//         ProductSet(fset(n,k-1));
-//     }
+//   if k == 0 {
+//     assert fseq(n,k-1) == [];
+//     assert ProductSeq(fseq(n,k-1)) == 1;
+//     assert factorial(n)/factorial(n-k) == 1;
+//     // calc {
+//     //     factorial(n)/factorial(n-k);
+//     //     ==
+//     //     factorial(n)/factorial(n-1);
+//     //     == {factorialFacts(n);}
+//     //     n;
+//     //     ==
+//     //     ProductSet(fset(n,k-1));
+//     // }
 //   }else{
 //     var k' := k - 1;
-//     assert fset(n,k) == fset(n,k-1)+{n-k};
-//     assert ProductSet(fset(n,k)) == (n-k)*ProductSet(fset(n,k-1));
+//     assert fseq(n,k) == [n-k] + fseq(n,k-1);
+//     assert fseq(n,k-1) == [n-k+1] + fseq(n,k-2);
+//     assert ProductSeq(fseq(n,k-1)) == ProductSeq(fseq(n,k-2))*(n-k+1);
+//     // factorialSeq(n);
+//     // assert factorial(n) == ProductSeq(fseq(n,n-1));
+//     // factorialSeq(n-k);
+//     // assert factorial(n-k) == ProductSeq(fseq(n-k,(n-k)-1));
+//     // // ProductSeqSubseq(n,k);
+//     // // assert ProductSeq(fseq(n,n-1)) == ProductSeq(fseq(n-k,(n-k)-1)) + ProductSeq(fseq(n,k-1));
+//     // // // assert ProductSet(fset(n,k)) == (n-k)*ProductSet(fset(n,k-1));
+
 //     // factorialDivison(n, k - 1);
-//     // assert factorial(n)/factorial(n-(k-1)) == ProductSet(fset(n,k-2));
+//     // assert factorial(n)/factorial(n-(k-1)) == ProductSeq(fseq(n,k-2));
+    
 
 //   }
 // }
