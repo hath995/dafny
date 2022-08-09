@@ -3,18 +3,56 @@ datatype Forest = Node(alpha: string) | Context | Zero | Product(left: Forest, r
 
 
 function method Remove(T: Forest, Q: Forest): Forest 
-
 {
     match T {
         case Node(alpha) => if Q == T then Context else Node(alpha)
-        case Context => Zero
+        case Context => Context
         case Zero => Zero
-        case Product(L, R) => if Q == L then Product(Context, Remove(R, Q)) else if Q == R then Product(Remove(L, Q), Context) else Product(Remove(L, Q), Remove(R, Q))
-        case Sum(L, R) => if Q == L then Sum(Context, Remove(R, Q)) else if Q == R then Sum(Remove(L, Q), Context) else Sum(Remove(L, Q), Remove(R, Q))
+        case Sum(L, R) => if T == Q then Context else Sum(Remove(L, Q), Remove(R, Q))
+        case Product(L, R) => if T == Q then Context else  Product(Remove(L, Q), Remove(R, Q))
     }
 }
 
-predicate nodeIn(forest: Forest, tree: Forest) {
+
+function childSet(forest: Forest): multiset<Forest> {
+    match forest {
+        case Node(alpha) => multiset{Node(alpha)}
+        case Context => multiset{}
+        case Zero => multiset{}
+        case Product(L, R) => childSet(L) + childSet(R)
+        case Sum(L, R) => childSet(L) + childSet(R)
+    }
+}
+
+method tcs() {
+    var q := Sum(Node("11"), Node("11"));
+    assert childSet(q)[Node("11")] == 2;
+}
+
+function forestSet(forest: Forest): set<Forest> {
+    match forest {
+        case Node(alpha) => {forest}
+        case Context => {Context}
+        case Zero => {Zero}
+        case Product(L, R) => {forest} + forestSet(L) + forestSet(R)
+        case Sum(L, R) => {forest} + forestSet(L) + forestSet(R)
+    }
+}
+
+function forestMultiSet(forest: Forest): multiset<Forest> {
+    match forest {
+        case Node(alpha) => multiset{forest}
+        case Context => multiset{Context}
+        case Zero => multiset{Zero}
+        case Product(L, R) => multiset{forest} + forestMultiSet(L) + forestMultiSet(R)
+        case Sum(L, R) => multiset{forest} + forestMultiSet(L) + forestMultiSet(R)
+    }
+}
+
+predicate nodeIn(forest: Forest, tree: Forest)
+    ensures nodeIn(forest, tree) == true ==> tree in forestSet(forest)
+    ensures nodeIn(forest, tree) == false ==> tree !in forestSet(forest)
+{
     match forest {
         case Node(alpha) => tree == forest
         case Context => tree == forest
@@ -83,11 +121,55 @@ lemma leftDistributive(q: Forest, p: Forest, r: Forest)
     sumEquality(p,q,r);
 }
 
-lemma Inverses(P: Forest, Q: Forest)
-    ensures composition(composition(Remove(P,Q),Q), Zero) == composition(P, Zero)
+lemma NotInIdempotent(P: Forest, Q: Forest)
+    requires nodeIn(P, Q) == false
+    ensures Remove(P, Q) == P
 {
 
 }
+
+lemma Inverses3(P: Forest, Q: Forest)
+    requires P != Q
+    requires !nodeIn(P, Context)
+    ensures composition(Remove(P,Q),Q) == P
+{
+
+}
+
+function method arity(P: Forest): nat  {
+    match P {
+        case Node(alpha) => 0
+        case Zero => 0
+        case Context => 1
+        case Product(L, R) => arity(L) +  arity(R)
+        case Sum(L, R) => arity(L) + arity(R)
+    }
+}
+
+//     requires forestMultiSet(p)[Context] == 1
+//     requires forall x :: x in childSet(r) ==> childSet(r)[x] == 1
+//     requires forall x :: x in childSet(p) ==> childSet(p)[x] == 1
+//     requires forall x :: x in childSet(q) ==> childSet(q)[x] == 1
+//     requires |forestMultiSet(q)| <= 6
+//     requires |forestMultiSet(p)| <= 6
+//     requires !nodeIn(q, Context)
+//     requires !nodeIn(r, Context)
+
+lemma removeIsAssociative(p: Forest, q: Forest, r: Forest)
+    requires arity(p) == 1
+    requires nodeIn(p, Context)
+    requires nodeIn(q, r) == true
+    requires forestMultiSet(q)[r] == 1
+    requires p != q
+    requires q != r && !nodeIn(p,q) && !nodeIn(q, Context)
+    requires p != r && !nodeIn(p, r)
+    ensures composition(p, Remove(q,r)) == Remove(composition(p, q), r)
+{
+    assert r !in forestSet(p);
+}
+/* 
+
+**/
 
 function method apply(mut: Mutation): Forest {
     match mut {

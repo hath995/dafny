@@ -53,9 +53,6 @@ method isIsomorphic(s: string, t: string) returns (answer: bool)
     // ensures answer ==> exists fn: (char) -> char :: Injective(fn) && forall i :: 1 <= i < |s| <= |t| ==> fn(s[i]) == t[i]
     ensures answer ==> exists fn: map<char,char> :: InjectiveMap(fn) && forall i :: 1 <= i < |s| <= |t| ==> s[i] in fn && fn[s[i]] == t[i]
 {
-    assert intsLessThan(0) == {};
-    assert intsLessThan(1) == {0};
-    assert intsLessThan(2) == {0,1};
     var sMap: map<char, nat> := map[];
     var sTransform: seq<nat> := [];
 
@@ -124,12 +121,10 @@ function createMap(lmap: map<char,nat>, rmap: map<char, nat>): map<char, char>
     requires InjectiveMap(lmap)
     requires InjectiveMap(rmap)
     requires rmap.Values == lmap.Values
-    // requires forall j :: 0 <= j < |s| ==> s[j] in lmap
-    // requires forall j :: 0 <= j < |t| ==> t[j] in rmap
     ensures forall x :: x in lmap ==> x in createMap(lmap, rmap)
     ensures InjectiveMap(createMap(lmap, rmap))
 {
-    map xs : char | xs in lmap :: injectiveMapHasKey(rmap, lmap[xs]); var maz :| maz in rmap && rmap[maz] == lmap[xs]; maz
+    map xs : char | xs in lmap :: injectiveMapHasKey(rmap, lmap[xs]); var rkey :| rkey in rmap && rmap[rkey] == lmap[xs]; rkey
 }
 
 lemma injectiveMapHasKey<T,U>(lmap: map<T, U>, value: U)
