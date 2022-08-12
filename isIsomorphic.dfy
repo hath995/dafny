@@ -158,7 +158,21 @@ lemma createMapHasAllTheValues(lmap: map<char,nat>, rmap: map<char, nat>, s: str
     forall i | 0 <= i < |s|
         ensures createMap(lmap, rmap)[s[i]] == t[i]
     {
-        assert smapped[i] == tmapped[i];
+        // assert smapped[i] == tmapped[i];
+        // //to further explain
+        // assert lmap[s[i]] == smapped[i];
+        // assert rmap[t[i]] == tmapped[i];
+        var k :| k in rmap.Keys && rmap[k] == lmap[s[i]];
+        calc {
+            createMap(lmap, rmap)[s[i]];
+            k;
+            { 
+            assert smapped[i] == tmapped[i]; 
+            assert lmap[s[i]] == smapped[i];
+            assert rmap[t[i]] == tmapped[i];
+            }
+            t[i];
+        }
     }
 
 }
