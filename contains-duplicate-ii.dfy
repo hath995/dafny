@@ -66,15 +66,15 @@ function containsNearbyDuplicate(nums: number[], k: number): boolean {
 };
 
 */
-method containsNearbyDuplicate(nums: seq<int>, k: nat) returns (containsDuplicate: bool) 
+method {:verify  true} containsNearbyDuplicateExtra(nums: seq<int>, k: nat) returns (containsDuplicate: bool) 
     requires k <= |nums|
     requires |nums| < 10
     ensures containsDuplicate ==> exists i,j :: 0 <= i < j < |nums| && j-i <= k && nums[i] == nums[j]
 {
     var windowSet: set<int> := {};
-    ghost var windowIndices: set<nat> := {};
-    ghost var windowGhost: set<int> := {};
-    ghost var removed: set<int> := {};
+    // ghost var windowIndices: set<nat> := {};
+    // ghost var windowGhost: set<int> := {};
+    // ghost var removed: set<int> := {};
     if k == 0 {
         return false;
     }
@@ -93,16 +93,16 @@ method containsNearbyDuplicate(nums: seq<int>, k: nat) returns (containsDuplicat
         invariant 1 <= k <= |nums|
         // invariant k <= i < |nums| && nums[i] !in windowSet ==> windowSet == windowGhost - {nums[i-k]} + {nums[i]}
         // invariant k <= i ==> forall x :: x in removed ==> x in nums[0..(i-k)]
-        invariant 0 < i <= k  ==> forall j  :: 0 <= j < i ==> nums[j] in windowSet
-        invariant i == k ==> forall j :: i-k <= j < i ==> nums[j] in windowSet
+        // invariant 0 < i <= k  ==> forall j  :: 0 <= j < i ==> nums[j] in windowSet
+        // invariant i == k ==> forall j :: i-k <= j < i ==> nums[j] in windowSet
 
-        invariant forall j ::  0 <= j < i ==> j in windowGhost
-        invariant forall x :: x in windowGhost ==> 0 <= x < |nums|
-        invariant i < k ==> removed == {}
-        invariant k <= i ==> removed == set x | 0 <= x < i-k
-        invariant windowIndices == windowGhost - removed
+        // invariant forall j ::  0 <= j < i ==> j in windowGhost
+        // invariant forall x :: x in windowGhost ==> 0 <= x < |nums|
+        // invariant i < k ==> removed == {}
+        // invariant k <= i ==> removed == set x | 0 <= x < i-k
+        // invariant windowIndices == windowGhost - removed
+        invariant windowSetValid(nums, k, i, windowSet)
         // invariant i < |nums| ==> |windowGhost| == i
-        invariant |windowIndices| <= k
         // invariant forall x :: x in windowIndices ==> nums[x] in windowSet
         // invariant forall x :: x in windowIndices ==> 0 <= x < |nums|
         // invariant forall x :: x in windowIndices ==> nums[x] in windowSet
@@ -113,16 +113,77 @@ method containsNearbyDuplicate(nums: seq<int>, k: nat) returns (containsDuplicat
         // invariant windowSet == set(nums[(max(0, i-k))..i])
     {
         if nums[i] in windowSet {
+            windowSetValidIsSufficient(nums, k, i, windowSet);
             return true;
         }
-        if i >= k {
-            windowIndices := windowIndices - {i-k};
-            removed := removed + {i-k};
-        }
+        // if i >= k {
+        //     windowIndices := windowIndices - {i-k};
+        //     removed := removed + {i-k};
+        // }
         windowSet := if i >= k then (windowSet -{nums[i-k]}) + {nums[i]} else windowSet + {nums[i]};
         assert nums[i] in windowSet;
-        windowIndices :=  windowIndices + {i};
-        windowGhost := windowGhost + {i};
+        // windowIndices :=  windowIndices + {i};
+        // windowGhost := windowGhost + {i};
     }
     return false;
+}
+
+method {:verify  true} containsNearbyDuplicate(nums: seq<int>, k: nat) returns (containsDuplicate: bool) 
+    requires k <= |nums|
+    requires |nums| < 10
+    ensures containsDuplicate ==> exists i,j :: 0 <= i < j < |nums| && j-i <= k && nums[i] == nums[j]
+{
+    var windowSet: set<int> := {};
+    if k == 0 {
+        return false;
+    }
+
+    for i: nat := 0 to |nums| 
+        invariant 1 <= k <= |nums|
+        invariant windowSetValid(nums, k, i, windowSet)
+    {
+        if nums[i] in windowSet {
+            windowSetValidIsSufficient(nums, k, i, windowSet);
+            return true;
+        }
+        windowSet := if i >= k then (windowSet -{nums[i-k]}) + {nums[i]} else windowSet + {nums[i]};
+    }
+    return false;
+}
+
+predicate windowSetValid(nums: seq<int>, k: nat, i: nat, windowSet: set<int>) 
+    requires 0 <= i <= |nums|
+    requires 0 < k <= |nums|
+{
+    if i < k then forall x :: x in windowSet ==> x in nums[0..i]
+    else forall x :: x in windowSet ==> x in nums[i-k..i]
+}
+
+function cd(nums: seq<int>, k: nat, i: nat, windowSet: set<int>): bool
+    requires 0 <= i <= |nums|
+    requires 0 < k <= |nums|
+    requires windowSetValid(nums, k, i, windowSet)
+    ensures cd(nums, k, i, windowSet) ==> exists i,j :: 0 <= i < j < |nums| && j-i <= k && nums[i] == nums[j]
+    decreases |nums| - i
+{
+    if i == |nums| then false
+    else if nums[i] in windowSet then windowSetValidIsSufficient(nums, k, i, windowSet); true
+    else if i < k then cd(nums, k, i+1, windowSet + {nums[i]})
+    else cd(nums, k, i + 1, (windowSet - {nums[i-k]}) + {nums[i]})
+}
+
+lemma windowSetValidIsSufficient(nums: seq<int>, k: nat, i: nat, windowSet:set<int>)  
+    requires 0 <= i < |nums|
+    requires 0 < k <= |nums|
+    requires windowSetValid(nums, k, i, windowSet)
+    requires nums[i] in windowSet
+    ensures exists i,j :: 0 <= i < j < |nums| && j-i <= k && nums[i] == nums[j]
+{
+    if i < k {
+        assert nums[i] in windowSet;
+        assert forall x :: x in windowSet ==> x in nums[0..i];
+    }else{
+        assert nums[i] in windowSet;
+        assert forall x :: x in windowSet ==> x in nums[i-k..i];
+    }
 }
