@@ -52,6 +52,7 @@ method isIsomorphic(s: string, t: string) returns (answer: bool)
     requires |t| == |s|
     // ensures answer ==> exists fn: (char) -> char :: Injective(fn) && forall i :: 1 <= i < |s| <= |t| ==> fn(s[i]) == t[i]
     ensures answer ==> exists fn: map<char,char> :: InjectiveMap(fn) && forall i :: 1 <= i < |s| <= |t| ==> s[i] in fn && fn[s[i]] == t[i]
+    ensures answer ==> exists gn: map<char,char> :: InjectiveMap(gn) && forall i :: 1 <= i < |s| <= |t| ==> t[i] in gn && gn[t[i]] == s[i]
 {
     var sMap: map<char, nat> := map[];
     var sTransform: seq<nat> := [];
@@ -247,9 +248,12 @@ lemma injectiveMapCanBeMade(lmap: map<char,nat>, rmap: map<char, nat>, s: string
     requires tmapped == aps(t, rmap)
     requires smapped == tmapped
     ensures exists fn: map<char,char> :: InjectiveMap(fn) && forall i :: 1 <= i < |s| <= |t| ==> s[i] in fn && fn[s[i]] == t[i]
+    ensures exists gn: map<char,char> :: InjectiveMap(gn) && forall i :: 1 <= i < |s| <= |t| ==> t[i] in gn && gn[t[i]] == s[i]
 {
     var fn := createMap(lmap, rmap);
-    assert InjectiveMap(fn);
+    var gn := createMap(rmap, lmap);
+    // assert InjectiveMap(fn);
+    // assert InjectiveMap(gn);
     createMapHasAllTheValues(lmap, rmap, s, t, smapped, tmapped);
 }
 
