@@ -316,21 +316,23 @@ lemma Excercise223(fn: (seq<int>) -> seq<int>)
             assert isort(list) == [];
         }else{
             var fnresult: seq<int> := fn(list);
-            assert sortedRec(fnresult);
             var it: seq<int> := isort(list);
-            firstAreEqualList(fn, list);
-
-            var fsmallest := fnresult[0];
-            assert fnresult == [fnresult[0]] + fnresult[1..];
-            var smallest := it[0];
-            assert multiset(it[1..]) == multiset(list) - multiset{smallest};
-            assert multiset(it[1..]) == multiset(fnresult[1..]);
-            assert |fnresult[1..]| == |it[1..]|;
-            restAreEqual(fn, list, [it[0]], fnresult[1..], it[1..]);
-            // assert it[1..] == fnresult[1..];
+            restAreEqual(fn, list, [], fnresult, it);
         }
 
         /*
+
+            // assert sortedRec(fnresult);
+            // firstAreEqualList(fn, list);
+
+            // var fsmallest := fnresult[0];
+            // assert fnresult == [fnresult[0]] + fnresult[1..];
+            // var smallest := it[0];
+            // assert multiset(it[1..]) == multiset(list) - multiset{smallest};
+            // assert multiset(it[1..]) == multiset(fnresult[1..]);
+            // assert |fnresult[1..]| == |it[1..]|;
+            // restAreEqual(fn, list, [it[0]], fnresult[1..], it[1..]);
+            // assert it[1..] == fnresult[1..];
             // assert fsmallest == smallest;
             // assert sortedRec(fnresult[1..]);
             // assert sortedRec(it[1..]);
