@@ -151,6 +151,32 @@ method {:verify  true} containsNearbyDuplicate(nums: seq<int>, k: nat) returns (
     return false;
 }
 
+method {:verify  true} containsNearbyDuplicateTest(nums: seq<int>, k: nat) returns (containsDuplicate: bool) 
+    requires k <= |nums|
+    requires |nums| < 10
+    ensures containsDuplicate ==> exists i,j :: 0 <= i < j < |nums| && j-i <= k && nums[i] == nums[j]
+{
+    var windowSet: set<int> := {};
+    if k == 0 {
+        return false;
+    }
+
+    for i: nat := 0 to |nums| 
+        invariant 1 <= k <= |nums|
+        // invariant windowSetValid(nums, k, i, windowSet)
+        invariant i < k ==> forall x :: x in windowSet ==> x in nums[0..i] 
+        invariant i >= k ==> forall x :: x in windowSet ==> x in nums[i-k..i]
+        // invariant if i < k then forall x :: x in windowSet ==> x in nums[0..i] else forall x :: x in windowSet ==> x in nums[i-k..i]
+
+    {
+        if nums[i] in windowSet {
+            return true;
+        }
+        windowSet := if i >= k then (windowSet -{nums[i-k]}) + {nums[i]} else windowSet + {nums[i]};
+    }
+    return false;
+}
+
 predicate windowSetValid(nums: seq<int>, k: nat, i: nat, windowSet: set<int>) 
     requires 0 <= i <= |nums|
     requires 0 < k <= |nums|
