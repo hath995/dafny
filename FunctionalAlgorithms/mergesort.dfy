@@ -37,6 +37,63 @@ function mergesort(xs: seq<int>): seq<int>
         merge(mergesort(xs[0..n/2]), mergesort(xs[n/2..]))
 }
 
+function {:verify true} merge_adj(xss: seq<seq<int>>): seq<seq<int>>
+    requires forall xs :: xs in xss ==> sortedRec(xs)
+    ensures |merge_adj(xss)| == (|xss| + 1)/2
+    ensures mset_mset(xss) == mset_mset(merge_adj(xss))
+    ensures forall xs :: xs in merge_adj(xss) ==> sortedRec(xs)
+{
+ if xss == [] then []
+ else if |xss| == 1 then xss
+ else [merge(xss[0], xss[1])] + merge_adj(xss[2..])
+}
+
+function {:verify true} merge_all(xss: seq<seq<int>>): seq<int>
+    requires forall xs :: xs in xss ==> sortedRec(xs)
+    ensures sortedRec(merge_all(xss))
+    ensures multiset(merge_all(xss)) == mset_mset(xss)
+    decreases |xss|
+{
+    if xss == [] then []
+    else if |xss| == 1 then xss[0]
+    else merge_all(merge_adj(xss))
+}
+
+
+function splitSeq(xs: seq<int>): seq<seq<int>>
+    ensures multiset(xs) == mset_mset(splitSeq(xs))
+    ensures forall ys :: ys in splitSeq(xs) ==> sortedRec(ys)
+{
+    if xs == [] then [] else
+        assert xs == [xs[0]] + xs[1..];
+        [[xs[0]]] + splitSeq(xs[1..])
+}
+
+function {:verify true} msort_bu(xs: seq<int>): seq<int>
+    ensures multiset(xs) == multiset(msort_bu(xs))
+    ensures sortedRec(msort_bu(xs))
+{
+    merge_all(splitSeq(xs))
+}
+
+function mset_mset(xss: seq<seq<int>>): multiset<int>
+    ensures forall xs :: xs in xss ==> forall x :: x in xs ==> x in mset_mset(xss) 
+{
+    if xss == [] then multiset{} else
+        assert xss == [xss[0]] + xss[1..]; 
+        multiset(xss[0]) + mset_mset(xss[1..])
+}
+
+method test() {
+    var data := [1,1,2,3,4];
+    // var mapped := seq(|data|, x requires 0 <= x < |data| => [data[x]]);
+    var mapped := splitSeq(data);
+    assert forall x :: x in data ==> x in mset_mset(mapped);
+    assert 1 in mset_mset(mapped);
+    assert 2 in mset_mset(mapped);
+    assert 5 !in mset_mset(mapped);
+}
+
 /*
 
         // assert result == [xs[0]] + result[1..];
