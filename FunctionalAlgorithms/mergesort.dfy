@@ -2,7 +2,7 @@ predicate sortedRec(list: seq<int>) {
     if list == [] then true else (forall y :: y in list[1..] ==> list[0] <= y) && sortedRec(list[1..])
 }
 
-function merge(xs: seq<int>, ys: seq<int>): seq<int>
+function method merge(xs: seq<int>, ys: seq<int>): seq<int>
     requires sortedRec(xs)
     requires sortedRec(ys)
     ensures sortedRec(merge(xs, ys))
@@ -27,7 +27,7 @@ function merge(xs: seq<int>, ys: seq<int>): seq<int>
         result
 }
 
-function mergesort(xs: seq<int>): seq<int>
+function method mergesort(xs: seq<int>): seq<int>
     ensures multiset(xs) == multiset(mergesort(xs))
     ensures sortedRec(mergesort(xs))
 {
@@ -37,7 +37,7 @@ function mergesort(xs: seq<int>): seq<int>
         merge(mergesort(xs[0..n/2]), mergesort(xs[n/2..]))
 }
 
-function {:verify true} merge_adj(xss: seq<seq<int>>): seq<seq<int>>
+function method {:verify true} merge_adj(xss: seq<seq<int>>): seq<seq<int>>
     requires forall xs :: xs in xss ==> sortedRec(xs)
     ensures |merge_adj(xss)| == (|xss| + 1)/2
     ensures mset_mset(xss) == mset_mset(merge_adj(xss))
@@ -48,7 +48,7 @@ function {:verify true} merge_adj(xss: seq<seq<int>>): seq<seq<int>>
  else [merge(xss[0], xss[1])] + merge_adj(xss[2..])
 }
 
-function {:verify true} merge_all(xss: seq<seq<int>>): seq<int>
+function method {:verify true} merge_all(xss: seq<seq<int>>): seq<int>
     requires forall xs :: xs in xss ==> sortedRec(xs)
     ensures sortedRec(merge_all(xss))
     ensures multiset(merge_all(xss)) == mset_mset(xss)
@@ -60,7 +60,7 @@ function {:verify true} merge_all(xss: seq<seq<int>>): seq<int>
 }
 
 
-function splitSeq(xs: seq<int>): seq<seq<int>>
+function method splitSeq(xs: seq<int>): seq<seq<int>>
     ensures multiset(xs) == mset_mset(splitSeq(xs))
     ensures forall ys :: ys in splitSeq(xs) ==> sortedRec(ys)
 {
@@ -69,7 +69,7 @@ function splitSeq(xs: seq<int>): seq<seq<int>>
         [[xs[0]]] + splitSeq(xs[1..])
 }
 
-function {:verify true} msort_bu(xs: seq<int>): seq<int>
+function method {:verify true} msort_bu(xs: seq<int>): seq<int>
     ensures multiset(xs) == multiset(msort_bu(xs))
     ensures sortedRec(msort_bu(xs))
 {
