@@ -1,3 +1,14 @@
+/*
+https://leetcode.com/problems/two-sum/
+function twoSum(nums: number[], target: number): number[] {
+    const n = nums.length;
+    for(let i = 0; i < n; i++) {
+        for(let k = i+1; k < n; k++) {
+            if(nums[i] + nums[k] == target) return [i,k]; 
+        }
+    }
+};
+*/
 predicate summingPair(i: nat, j: nat, nums: seq<int>, target: int)
     requires i < |nums|
     requires j < |nums|
@@ -93,10 +104,11 @@ method twoSumBetter(nums: seq<int>, target: int) returns (pair: (nat,nat))
     while i < |nums|
         invariant 0 <= i <= |nums|
         invariant forall j :: 0 <= j < i < |nums| ==> nums[j] in visitedMap
-        invariant InjectiveMap(visitedMap);
+        // invariant InjectiveMap(visitedMap);
         invariant forall x :: x in visitedMap ==> x in nums[0..i]
         invariant forall x :: x in visitedMap.Values ==> x < i
         invariant forall nj :: nj in visitedMap ==> mapsToNum(visitedMap, nums, nj)
+        invariant forall x,y :: x in visitedMap && y in visitedMap ==> !summingPair(visitedMap[x], visitedMap[y], nums, target)
         // invariant forall z :: z < i ==> forall k :: k < z ==> !summingPair(k,z, nums, target)
     {
         // assert forall k:nat :: k in oldMap.Values ==> k in lessThanI(i+1);
@@ -122,6 +134,7 @@ method twoSumBetter(nums: seq<int>, target: int) returns (pair: (nat,nat))
         MergeMapSets(visitedMap, map[nums[i] := i], i+1);
         visitedMap := visitedMap + map[nums[i] := i];
         i := i + 1;
+        assert forall x :: x in visitedMap.Values ==> x < i;
         // assert forall k :: k in map[nums[i] := i].Values ==> k < i;
         // assert visitedMap == oldMap + map[nums[i]:= i];
         // assert visitedMap.Values == oldMap.Values + (map[nums[i]:= i]).Values;
