@@ -71,8 +71,19 @@ lemma ConcatAssociative(xs: ListNode, ys: ListNode, zs: ListNode)
 
 }
 
-lemma {:verify false} ConcatReverseList(xs:ListNode, ys: ListNode) 
+lemma reverseSingleList(xs: ListNode) 
+    requires xs != Null;
+    requires xs.next == Null;
+    ensures reverseList(xs) == xs;
+{
+
+}
+
+
+
+lemma {:verify true} ConcatReverseList(xs:ListNode, ys: ListNode) 
     ensures reverseList(nodeConcat(xs,ys)) == nodeConcat(reverseList(ys), reverseList(xs))
+    decreases xs;
 {
     if xs == Null {
         calc {
@@ -86,14 +97,41 @@ lemma {:verify false} ConcatReverseList(xs:ListNode, ys: ListNode)
         }
     }else{
         var x := Node(xs.val, Null);
-        // assert xs == nodeConcat(x, xs.next);
         calc {
             reverseList(nodeConcat(xs, ys));
             reverseList(nodeConcat(nodeConcat(x, xs.next), ys));
             == {ConcatAssociative(x, xs.next, ys);}
             reverseList(nodeConcat(x, nodeConcat(xs.next, ys)));
+            nodeConcat(reverseList(nodeConcat(xs.next, ys)), x);
+            == {ConcatReverseList(xs.next, ys);}
+            nodeConcat(nodeConcat(reverseList(ys) , reverseList(xs.next)), x);
+            == {ConcatAssociative(reverseList(ys), reverseList(xs.next), x);}
+            nodeConcat(reverseList(ys) , nodeConcat(reverseList(xs.next), x));
+            nodeConcat(reverseList(ys) , reverseList(xs));
         }
 
+    }
+}
+
+lemma reverseReverseListIsIdempotent(xs: ListNode)
+    ensures reverseList(reverseList(xs)) == xs
+{
+    if xs == Null {
+
+    }else{
+        var x := Node(xs.val, Null);
+        calc {
+            reverseList(reverseList(xs));
+            reverseList(reverseList(nodeConcat(x, xs.next)));
+            == {ConcatReverseList(x, xs.next);}
+            reverseList(nodeConcat(reverseList(xs.next), reverseList(x)));
+            reverseList(nodeConcat(reverseList(xs.next), x));
+            == {ConcatReverseList(reverseList(xs.next),x);}
+            nodeConcat(reverseList(x), reverseList(reverseList(xs.next))); //dafny can figure out the rest from here
+            nodeConcat(x, reverseList(reverseList(xs.next)));
+            nodeConcat(x, xs.next);
+            xs;
+        }
     }
 }
 
@@ -143,6 +181,7 @@ lemma firstReverseIsLast<A>(xs: seq<A>)
       assert xs + ys == [xs[0]] + (xs[1..] + ys);
     }
   }
+
 
 lemma reverseRest<A>(xs: seq<A>)
     requires |xs| > 0
@@ -239,3 +278,39 @@ lemma reverseReverseIdempotent<A>(xs: seq<A>)
 // lastReverseIsFirst(reverse(xs));
 
 // assert reverse(reverse(xs))[0] == x;
+
+/*
+/**
+https://leetcode.com/problems/linked-list-cycle/description/
+ * Definition for singly-linked list.
+ * class ListNode {
+ *     val: number
+ *     next: ListNode | null
+ *     constructor(val?: number, next?: ListNode | null) {
+ *         this.val = (val===undefined ? 0 : val)
+ *         this.next = (next===undefined ? null : next)
+ *     }
+ * }
+ */
+
+function hasCycle(head: ListNode | null): boolean {
+    let leader = head;
+    let follower = head;
+    while(leader !== null) {
+        leader = leader.next;
+        if(follower && follower.next) {
+            follower = follower.next.next;
+        }else if(follower && follower.next == null){
+            follower=follower.next;
+        }
+        if(follower == leader && follower != null) return true;
+    }
+    return false;
+};
+*/
+
+method test() {
+    var cycle := Node(1, Null);
+    var next := Node(2, cycle);
+    // cycle.next := next;
+}
