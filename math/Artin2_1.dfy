@@ -26,16 +26,26 @@ predicate ValidGroup<A>(g: Group<A>) {
     g.identity in g.elements &&
     isIdentity(g) &&
     closedComposition(g) &&
-    associativeComposition(g) && 
-    containsInverses(g)
+    associativeComposition(g) //&&
+    // containsInverses(g)
+}
+
+predicate ValidSubGroup<A>(g: Group<A>, h: Group<A>) {
+    h.elements <= g.elements &&
+    g.identity in h.elements &&
+    g.identity == h.identity &&
+    g.compose == h.compose &&
+    closedComposition(h) &&
+    containsInverses(h)
 }
 
 predicate AbelianGroup<A>(g: Group<A>) {
     ValidGroup(g) && commutativeComposition(g)
 }
 
-lemma groupCompositionInverse<A>(g: Group<A>, a: A, b: A, abar: A, bbar: A, abbar: A) 
+lemma {:verify true} groupCompositionInverse<A>(g: Group<A>, a: A, b: A, abar: A, bbar: A, abbar: A)
     requires ValidGroup(g)
+    requires containsInverses(g)
     requires a in g.elements
     requires b in g.elements
     requires abar in g.elements
@@ -48,7 +58,7 @@ lemma groupCompositionInverse<A>(g: Group<A>, a: A, b: A, abar: A, bbar: A, abba
 {
     calc {
         g.compose(g.compose(a, b), g.compose(bbar, abar));
-        == 
+        ==
         g.compose(a, g.compose(g.compose(b, bbar),abar));
         ==
         g.compose(a, g.compose(g.identity,abar));
@@ -57,4 +67,81 @@ lemma groupCompositionInverse<A>(g: Group<A>, a: A, b: A, abar: A, bbar: A, abba
         ==
         g.identity;
     }
+}
+
+function apow<A>(g: Group, elem: A, n: nat): A
+    requires elem in g.elements
+{
+    if n == 0 then g.identity else g.compose(elem, apow(g, elem, n-1))
+}
+
+lemma onePower<A>(g: Group, elem: A)
+    requires elem in g.elements
+    requires isIdentity(g)
+    ensures apow(g, elem, 1) == elem;
+{
+    calc {
+        apow(g, elem, 1);
+        g.compose(elem, apow(g, elem, 0));
+        g.compose(elem, g.identity);
+        elem;
+    }
+}
+
+lemma apowClosed<A>(g: Group, elem: A, n: nat)
+    requires elem in g.elements
+    requires g.identity in g.elements
+    requires isIdentity(g)
+    requires closedComposition(g)
+    ensures apow(g,elem, n) in g.elements
+{
+
+}
+
+lemma {:verify true} apowAddition<A>(g: Group<A>, elem: A, n: nat, k: nat)
+    requires elem in g.elements
+    requires ValidGroup(g)
+    ensures g.compose(apow(g, elem, n), apow(g, elem, k)) == apow(g, elem, n+k)
+{
+    apowClosed(g, elem, n);
+    apowClosed(g, elem, k);
+    if k == 0 {
+        assert apow(g, elem, k) == g.identity;
+        assert g.compose(apow(g, elem, n), g.identity) == apow(g, elem, n+0);
+    }else if n == 0 {
+        assert apow(g, elem, n) == g.identity;
+        assert g.compose(g.identity, apow(g, elem, k)) == apow(g, elem, k+0);
+    }else{
+        apowClosed(g, elem, n-1);
+        calc {
+            g.compose(apow(g, elem, n), apow(g, elem, k));
+            g.compose(g.compose(elem, apow(g, elem, n-1)), apow(g, elem, k));
+            g.compose(elem, g.compose(apow(g, elem, n-1), apow(g, elem, k)));
+            == {apowAddition(g,elem, n-1,k);}
+            g.compose(elem, apow(g, elem, n-1+k));
+            apow(g, elem, n+k);
+        }
+    }
+}
+
+predicate CyclicGroupGeneratedBy<A(!new)>(g: Group, elem: A)
+    requires elem in g.elements
+{
+    exists n :: n == |g.elements| &&
+        apow(g, elem, n) == g.identity &&
+        (forall ns :: ns != n && apow(g, elem, ns) == g.identity ==> n < ns) &&
+        n != 0 && |g.elements| == n &&
+        forall x :: x in g.elements && exists n :: apow(g, elem, n) == x
+}
+
+lemma {:verify false} AllSubgroupsOfCyclicSubgroupsAreCyclic<A(!new)>(g: Group, elem: A, h:Group)
+    requires elem in g.elements
+    requires CyclicGroupGeneratedBy(g, elem)
+    requires ValidGroup(g)
+    requires h.elements < g.elements
+    requires ValidGroup(h)
+    requires ValidSubGroup(g, h)
+    ensures exists hx: A :: hx in h.elements && CyclicGroupGeneratedBy(h, hx)
+{
+
 }
