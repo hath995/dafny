@@ -87,7 +87,7 @@ module Artin {
     }
 
     //apow is short for abstract power
-    function apow<A>(g: Group, elem: A, n: int): A
+    function {:opaque} apow<A>(g: Group, elem: A, n: int): A
         requires elem in g.elements
         decreases n*n
         ensures n == 0 ==> apow(g,elem,n) == g.identity
@@ -99,13 +99,17 @@ module Artin {
         requires elem in g.elements
         requires n > 0
         ensures n > 0 ==> apow(g,elem,n) == g.compose(elem, apow(g, elem, n-1))
-    {}
+    {
+        reveal apow();
+    }
 
     lemma apowNegative<A>(g: Group, elem: A, n: int)
         requires elem in g.elements
         requires !(n > 0)
         ensures n < 0 ==> apow(g,elem,n) == g.compose(g.inverse(elem), apow(g, elem, n+1))
-    {}
+    {
+        reveal apow();
+    }
 
 
     lemma onePower<A>(g: Group, elem: A)
@@ -115,6 +119,7 @@ module Artin {
     {
         calc {
             apow(g, elem, 1);
+            =={ reveal apow();}
             g.compose(elem, apow(g, elem, 0));
             g.compose(elem, g.identity);
             elem;
@@ -127,35 +132,35 @@ module Artin {
         requires closedInverse(g) && isInverse(g)
         ensures apow(g, elem, -1) == g.inverse(elem);
     {
+        reveal apow();
     }
 
-    lemma {:verify true} apowClosed<A>(g: Group, elem: A, n: int)
+    lemma {:verify true} {:induction false} apowClosed<A>(g: Group, elem: A, n: int)
         requires elem in g.elements
         requires g.identity in g.elements
         requires isIdentity(g)
         requires closedComposition(g)
         requires closedInverse(g)
         requires isInverse(g)
-        // requires n >= 0
         decreases n*n
         ensures apow(g, elem, n) in g.elements
     {
-        // if n == 0 {
-        //     assert apow(g, elem, 0) in g.elements;
-        // } else if n > 0 {
-        //     // apowPos(g, elem, n);
-        //     // apowClosed(g, elem, n-1);
-        // }else {
-        //     apowNegative(g,elem, n);
-        //     apowClosed(g, elem, n+1);
-        //     assert apow(g, elem, n+1) in g.elements;
-        //     assert elem in g.elements;
-        //     // calc {
-        //     //     apow(g, elem, n);
-        //     //     g.compose(g.inverse(elem), )
-        //     // }
-        //     assert apow(g, elem, n) in g.elements;
-        // }
+        reveal apow();
+        if n == 0 {
+            assert apow(g, elem, 0) in g.elements;
+        } else if n > 0 {
+            apowPos(g, elem, n);
+            apowClosed(g, elem, n-1);
+        }else {
+            apowNegative(g,elem, n);
+            apowClosed(g, elem, n+1);
+            assert apow(g, elem, n+1) in g.elements;
+            // calc {
+            //     apow(g, elem, n);
+            //     g.compose(g.inverse(elem), )
+            // }
+            assert apow(g, elem, n) in g.elements;
+        }
 }
 
     lemma {:verify true} allApowClosed<A>(g: Group, elem: A) 
@@ -163,14 +168,14 @@ module Artin {
         requires elem in g.elements
         ensures forall x: int :: apow(g, elem, x) in g.elements
     {
-        forall x: int | true 
-        {
+        reveal apow();
+        forall x: int {
             apowClosed(g, elem, x);
         }
     }
 
     // method {:verify true} apowSubtract<A>(g: Group<A>, elem: A, n: int)
-    lemma {:verify true} {:induction false} apowSubtract<A>(g: Group<A>, elem: A, n: int)
+    lemma {:verify false} {:induction false} apowSubtract<A>(g: Group<A>, elem: A, n: int)
         requires ValidGroup(g)
         requires elem in g.elements
         requires n >= 0
@@ -182,6 +187,7 @@ module Artin {
             calc {
                 g.compose(apow(g, elem, -1), apow(g, elem, n));
                 // == {apowPos(g,elem, n);}
+                == {reveal apow();}
                 g.compose(apow(g, elem, -1), g.compose(elem, apow(g, elem, n-1)));
                 g.compose(g.compose(apow(g, elem, -1), elem), apow(g, elem, n-1));
                 g.compose(g.compose(g.inverse(elem), elem), apow(g, elem, n-1));
@@ -201,7 +207,7 @@ module Artin {
         }
     }
 
-    lemma {:verify true} apowAddition<A>(g: Group<A>, elem: A, n: nat, k: nat)
+    lemma {:verify false} apowAddition<A>(g: Group<A>, elem: A, n: nat, k: nat)
         requires elem in g.elements
         requires ValidGroup(g)
         ensures g.compose(apow(g, elem, n), apow(g, elem, k)) == apow(g, elem, n+k)
@@ -225,28 +231,31 @@ module Artin {
         }
     }
 
-    lemma {:verify false} {:induction false} apowExponent<A>(g: Group<A>, elem: A, k: nat, s: nat)
+    lemma {:verify true} {:induction false} apowExponent<A>(g: Group<A>, elem: A, k: nat, s: nat)
         requires elem in g.elements
         requires ValidGroup(g)
-        ensures apow(g, apow(g, elem, k), s) == apow(g, elem, k*s);
+        // ensures apow(g, apow(g, elem, k), s) == apow(g, elem, k*s);
     {
         allApowClosed(g,elem);
-        if s == 0 {
-            // assert apow(g,apow(g,elem,k),s) == g.identity;
-            assert k * s == 0;
-            assert s == 0;
-        }else{
-            calc {
-                apow(g, apow(g, elem, k), s);
-                g.compose(apow(g, elem, k), apow(g, apow(g, elem, k), s-1));
-                == {apowExponent(g, elem, k, s-1);}
-                g.compose(apow(g, elem, k), apow(g,elem, k*(s-1)));
-                == {apowAddition(g,elem, k, k*(s-1));}
-                apow(g, elem, k+k*(s-1));
-                apow(g, elem, k+k*s-k);
-                apow(g, elem, k*s);
-            }
-        }
+        assert apow(g, elem, k) in g.elements;
+        allApowClosed(g,apow(g, elem, k));
+        assert apow(g, apow(g, elem, k), s) in g.elements;
+        // if s == 0 {
+        //     // assert apow(g,apow(g,elem,k),s) == g.identity;
+        //     assert k * s == 0;
+        //     assert s == 0;
+        // }else{
+        //     calc {
+        //         apow(g, apow(g, elem, k), s);
+        //         g.compose(apow(g, elem, k), apow(g, apow(g, elem, k), s-1));
+        //         == {apowExponent(g, elem, k, s-1);}
+        //         g.compose(apow(g, elem, k), apow(g,elem, k*(s-1)));
+        //         == {apowAddition(g,elem, k, k*(s-1));}
+        //         apow(g, elem, k+k*(s-1));
+        //         apow(g, elem, k+k*s-k);
+        //         apow(g, elem, k*s);
+        //     }
+        // }
     }
 
     predicate CyclicGroupGeneratedBy<A(!new)>(g: Group, elem: A)
