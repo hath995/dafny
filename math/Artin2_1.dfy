@@ -1,4 +1,6 @@
+include "./gcd.dfy"
 module Artin {
+    import Math
     //!A signifies type invariance
     datatype Group<!A> = Group(elements: set<A>, identity: A, compose: (A,A) -> A, inverse: (A) -> A)
 
