@@ -5,7 +5,7 @@ module Artin {
     datatype Group<!A> = Group(elements: set<A>, identity: A, compose: (A,A) -> A, inverse: (A) -> A)
 
     predicate isIdentity<A>(g: Group<A>) {
-        forall a :: a in g.elements ==> g.compose(a,g.identity) == a && g.compose(g.identity, a) == a
+        forall a {:trigger {g.compose(a,g.identity), g.compose(g.identity,a)}} :: a in g.elements ==> g.compose(a,g.identity) == a && g.compose(g.identity, a) == a
     }
 
     predicate closedComposition<A>(g: Group<A>) {
@@ -134,34 +134,36 @@ module Artin {
     lemma {:verify true} apowClosed<A>(g: Group, elem: A, n: int)
         requires elem in g.elements
         requires g.identity in g.elements
-        requires isIdentity(g)
+        // requires isIdentity(g)
         requires closedComposition(g)
         requires closedInverse(g)
-        requires isInverse(g)
+        // requires isInverse(g)
         // requires n >= 0
         decreases n*n
         ensures apow(g, elem, n) in g.elements
     {
-        // if n == 0 {
-        //     assert apow(g, elem, 0) in g.elements;
-        // } else if n > 0 {
-        //     // apowPos(g, elem, n);
-        //     // apowClosed(g, elem, n-1);
-        // }else {
-        //     apowNegative(g,elem, n);
-        //     apowClosed(g, elem, n+1);
-        //     assert apow(g, elem, n+1) in g.elements;
-        //     assert elem in g.elements;
-        //     // calc {
-        //     //     apow(g, elem, n);
-        //     //     g.compose(g.inverse(elem), )
-        //     // }
-        //     assert apow(g, elem, n) in g.elements;
-        // }
+        if n == 0 {
+            assert apow(g, elem, 0) in g.elements;
+        } else if n > 0 {
+            apowPos(g, elem, n);
+            // apowClosed(g, elem, n-1);
+        }else {
+            apowNegative(g,elem, n);
+            apowClosed(g, elem, n+1);
+            assert apow(g, elem, n+1) in g.elements;
+            assert elem in g.elements;
+            // calc {
+            //     apow(g, elem, n);
+            //     g.compose(g.inverse(elem), )
+            // }
+            assert apow(g, elem, n) in g.elements;
+        }
 }
 
     lemma {:verify true} allApowClosed<A>(g: Group, elem: A) 
-        requires ValidGroup(g)
+        requires closedComposition(g)
+        requires closedInverse(g)
+        requires g.identity in g.elements
         requires elem in g.elements
         ensures forall x: int :: apow(g, elem, x) in g.elements
     {
@@ -205,7 +207,12 @@ module Artin {
 
     lemma {:verify true} apowAddition<A>(g: Group<A>, elem: A, n: nat, k: nat)
         requires elem in g.elements
-        requires ValidGroup(g)
+        // requires ValidGroup(g)
+        requires closedComposition(g)
+        requires closedInverse(g)
+        requires g.identity in g.elements
+        requires isIdentity(g);
+        requires associativeComposition(g)
         ensures g.compose(apow(g, elem, n), apow(g, elem, k)) == apow(g, elem, n+k)
     {
         allApowClosed(g, elem);
@@ -227,26 +234,85 @@ module Artin {
         }
     }
 
-    lemma {:verify false} {:induction false} apowExponent<A>(g: Group<A>, elem: A, k: nat, s: nat)
+    lemma positiveNumbersArePositive(k: nat, s: nat)
+        requires k >= 0;
+        requires s >= 0;
+        ensures Math.prod(k , s) >= 0
+    {
+        reveal Math.prod();
+    }
+
+    lemma positiveNumbersAreStilPositive(k: nat, s: nat, x: nat, y: nat)
+        requires k >= 0;
+        requires s >= 0;
+        requires x >= 0;
+        requires y >= 0;
+        ensures Math.prod(k , s) + Math.prod(x,y) >= 0
+    {
+        positiveNumbersArePositive(k,s);
+        positiveNumbersArePositive(x,y);
+        // reveal Math.prod();
+    }
+
+    lemma testBlarg(k: nat)
+        requires k >= 0;
+    {
+        positiveNumbersArePositive(k,1);
+        assert Math.prod(k, 1) >= 0;
+    }
+
+    lemma {:verify false} {:induction false} {:fuel 1,1} apowExponent<A>(g: Group<A>, elem: A, k: nat, s: nat)
         requires elem in g.elements
-        requires ValidGroup(g)
-        ensures apow(g, apow(g, elem, k), s) == apow(g, elem, k*s);
+        // requires ValidGroup(g)
+        requires closedComposition(g)
+        requires closedInverse(g)
+        requires g.identity in g.elements
+        requires isIdentity(g);
+        requires associativeComposition(g)
+        // ensures apow(g, apow(g, elem, k), s) == apow(g, elem, k*s);
     {
         allApowClosed(g,elem);
+        allApowClosed(g,apow(g,elem, k));
         if s == 0 {
-            // assert apow(g,apow(g,elem,k),s) == g.identity;
             assert k * s == 0;
             assert s == 0;
-        }else{
+            assert apow(g,apow(g,elem,k),s) == g.identity;
+        }else if s > 0 {
+            assert k >= 0;
+            assert s > 0;
+            assert s >= 0;
+            // assert s-1 >= 0;
+            var one: nat := 1;
+            positiveNumbersArePositive(k, one);
+            positiveNumbersArePositive(k, s);
+            positiveNumbersArePositive(k, s-1);
+            // positiveNumbersAreStilPositive(k,1,k,s-1);
+            assert Math.prod(k,(s-1)) >= 0;
+            assert Math.prod(k,s) >= 0;
+            // assert Math.prod(k,1) + Math.prod(k,s-1) >= 0;
+            assume apow(g, apow(g, elem, k), s-1) == apow(g, elem, Math.prod(k,s-1));
+            assert k + Math.prod(k,s-1) >= 0;
+            assert apow(g, elem, k) in g.elements;
+            assert apow(g, elem, Math.prod(k,s-1)) in g.elements;
+            assert apow(g, elem, k+Math.prod(k,s-1)) in g.elements;
+            // assert apow(g, elem, Math.prod(k,1)+Math.prod(k, s-1)) in g.elements;
+            // assert apow(g, elem, Math.prod(k,s)) in g.elements by {
+            //     reveal Math.prod();
+            // }
             calc {
                 apow(g, apow(g, elem, k), s);
                 g.compose(apow(g, elem, k), apow(g, apow(g, elem, k), s-1));
-                == {apowExponent(g, elem, k, s-1);}
-                g.compose(apow(g, elem, k), apow(g,elem, k*(s-1)));
-                == {apowAddition(g,elem, k, k*(s-1));}
-                apow(g, elem, k+k*(s-1));
-                apow(g, elem, k+k*s-k);
-                apow(g, elem, k*s);
+            //     == {apowExponent(g, elem, k, s-1);}
+                g.compose(apow(g, elem, k), apow(g, elem, Math.prod(k,s-1)));
+                == {apowAddition(g,elem, k, Math.prod(k, s-1));}
+                apow(g, elem, k+Math.prod(k, s-1));
+                == {Math.prodIdentity(k);}
+                // apow(g, elem, Math.prod(k,1)+Math.prod(k, s-1));
+                // == {Math.prodDistributes(k, 1, s-1);}
+                // apow(g, elem, Math.prod(k, s));
+            //     apow(g, elem, k+k*s-k);
+            //     apow(g, elem, k+k*s-k);
+            //     apow(g, elem, k*s);
             }
         }
     }
