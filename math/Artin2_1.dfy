@@ -411,7 +411,57 @@ module Artin {
 
     }
 
-    lemma {:verify }  apowExponent<A>(g: Group<A>, elem: A, k: nat, s: nat)
+    lemma something<A>(g: Group<A>, elem: A, k: nat, s: nat)
+        requires elem in g.elements
+        // requires ValidGroup(g)
+        requires closedComposition(g)
+        requires closedInverse(g)
+        requires g.identity in g.elements
+        requires isIdentity(g);
+        requires associativeComposition(g)
+        requires s >= 1
+        ensures g.compose(apow(g, elem, k), apow(g, elem, k*(s-1))) == apow(g, elem, k + k*(s-1))
+    {
+        apowAddition(g, elem, k, k*(s-1));
+    }
+    lemma something2<A>(g: Group<A>, elem: A, k: nat, s: nat)
+        requires s >= 1
+        ensures apow(g, elem, k*s) == apow(g, elem, k + k*(s-1))
+    {
+        // assert k+k*(s-1) == k * s;
+    }
+
+    lemma {:verify }  apowExponentNat<A>(g: Group<A>, elem: A, k: nat, s: nat)
+        requires elem in g.elements
+        // requires ValidGroup(g)
+        requires closedComposition(g)
+        requires closedInverse(g)
+        requires g.identity in g.elements
+        requires isIdentity(g);
+        requires associativeComposition(g)
+        ensures apow(g, apow(g, elem, k), s) == apow(g, elem, k*s);
+    {
+        if s == 0 {
+            // assert k * s == 0;
+            // assert s == 0;
+            // assert apow(g,apow(g,elem,k),s) == g.identity;
+        }else if s > 0 {
+            // assume apow(g, apow(g, elem, k), s-1) == apow(g, elem, k*(s-1));
+            calc {
+                apow(g, apow(g, elem, k), s);
+                g.compose(apow(g, elem, k), apow(g, apow(g, elem, k), s-1));
+                == {apowExponentNat(g, elem, k, (s-1));}
+                g.compose(apow(g, elem, k), apow(g, elem, k*(s-1)));
+                == {something(g,elem, k, s);}
+                // == {apowAddition(g, elem, k, k*(s-1));}
+                apow(g, elem, k+k*(s-1));
+                == {something2(g, elem,k,s);} //will verify without this but will do it slower
+                apow(g, elem, k*s);
+            }
+        }
+    }
+
+    lemma {:verify false}  apowExponent<A>(g: Group<A>, elem: A, k: nat, s: nat) //works but is slow
         requires elem in g.elements
         // requires ValidGroup(g)
         requires closedComposition(g)
