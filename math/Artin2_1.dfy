@@ -75,6 +75,19 @@ module Artin {
     forall x {:trigger g.inverse(x)} :: x in g.elements ==> g.compose(x,g.inverse(x)) == g.identity && g.compose(g.inverse(x),x) == g.identity
     }
 
+    lemma areInverses<A>(g: Group<A>, a: A,  b: A)
+        requires ValidGroup(g)
+        requires a in g.elements && b in g.elements
+        requires g.compose(a, b) == g.identity && g.compose(b,a) == g.identity
+        ensures g.inverse(a) == b && g.inverse(b) == a
+    {
+        var x := g.inverse(b);
+        calc {
+            g.compose(g.compose(a,b), x);
+            g.compose(a, g.compose(b,x));
+        }
+    }
+
     predicate ValidGroup<A>(g: Group<A>) {
         g.identity in g.elements &&
         isIdentity(g) &&
@@ -549,6 +562,41 @@ module Artin {
             (forall ns :: ns != n && apow(g, elem, ns) == g.identity ==> n < ns) &&
             n != 0 &&
             forall x :: x in g.elements && exists n :: apow(g, elem, n) == x
+    }
+
+    predicate isIsomorphism<A,B>(g: Group<A>, g': Group<B>, phi: A -> B)
+        requires ValidGroup(g)
+        requires ValidGroup(g')
+    {
+        phi(g.identity) == g'.identity &&
+        forall x :: x in g.elements ==> phi(x) in g'.elements &&
+        forall x,y :: x in g.elements && y in g.elements ==> phi(g.compose(x,y)) == g'.compose(phi(x), phi(y))
+    }
+
+    lemma Artin2_3_b<A,B>(g: Group<A>, g': Group<B>, phi: A -> B, x: A, y: A) 
+        requires ValidGroup(g)
+        requires ValidGroup(g')
+        requires isIsomorphism(g, g', phi)
+        requires x in g.elements && y in g.elements
+        requires g.compose(x, g.compose(y,x)) == g.compose(y, g.compose(x, y))
+        ensures g'.compose(phi(x), g'.compose(phi(y), phi(x))) == g'.compose(phi(y), g'.compose(phi(x), phi(y)))
+    {
+
+    }
+
+    lemma Artin2_3_c<A,B>(g: Group<A>, g': Group<B>, phi: A -> B, x: A) 
+        requires ValidGroup(g)
+        requires ValidGroup(g')
+        requires isIsomorphism(g, g', phi)
+        requires x in g.elements
+        ensures g'.inverse(phi(x)) == phi(g.inverse(x))
+    {
+
+        assert g.compose(x, g.inverse(x)) == g.identity;
+        assert g'.compose(phi(x), phi(g.inverse(x))) == phi(g.identity) == g'.identity;
+        assert g.compose(g.inverse(x), x) == g.identity;
+        assert g'.compose(phi(g.inverse(x)), phi(x)) == phi(g.identity) == g'.identity;
+        areInverses(g',phi(g.inverse(x)), phi(x));
     }
 
     lemma {:verify false} AllSubgroupsOfCyclicSubgroupsAreCyclic<A(!new)>(g: Group, elem: A, h:Group)
