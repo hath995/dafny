@@ -102,12 +102,6 @@ class TreeNode {
 
 }
 
-datatype Tree = Node(val: int, left: Tree, right: Tree) | Nil
-
-predicate injectiveSeq<A>(s: seq<A>) {
-    forall x,y :: x != y && 0 <= x < y < |s| ==> s[x] != s[y]
-}
-
 function method PreorderTraversal(root: TreeNode): seq<TreeNode>
     reads root.repr
     requires root.Valid()
@@ -119,164 +113,6 @@ function method PreorderTraversal(root: TreeNode): seq<TreeNode>
     // ensures forall k :: 0 <= k < |PreorderTraversal(root)| ==> forall child :: child in PreorderTraversal(root)[k].repr && child != child in PreorderTraversal(root)[k] ==> exists j :: k < j < |PreorderTraversal(root)| && PreorderTraversal(root)[j] == child
 {
    if root.left != null && root.right != null then [root]+PreorderTraversal(root.left)+PreorderTraversal(root.right) else if root.left != null then [root]+PreorderTraversal(root.left) else if root.right != null then [root]+PreorderTraversal(root.right) else [root]
-}
-
-function method TreePreorderTraversal(root: Tree): seq<Tree>
-    // ensures forall x :: x in TreePreorderTraversal(root) ==> x != Nil
-    // ensures forall x :: x in TreePreorderTraversal(root) ==> x != Nil && (x == root || x in TreePreorderTraversal(root.left) || x in TreePreorderTraversal(root.right))
-    // ensures forall x :: x in root.repr ==> x in PreorderTraversal(root)
-    // ensures injectiveSeq(TreePreorderTraversal(root))
-    // ensures forall k :: 0 <= k < |TreePreorderTraversal(root)| ==> TreePreorderTraversal(root)[k] in root.repr
-    // ensures forall k :: 0 <= k < |PreorderTraversal(root)| ==> forall child :: child in PreorderTraversal(root)[k].repr && child != child in PreorderTraversal(root)[k] ==> exists j :: k < j < |PreorderTraversal(root)| && PreorderTraversal(root)[j] == child
-{
-   if root == Nil then [] else if root.left != Nil && root.right != Nil then [root]+TreePreorderTraversal(root.left)+TreePreorderTraversal(root.right) else if root.left != Nil then [root]+TreePreorderTraversal(root.left) else if root.right != Nil then [root]+TreePreorderTraversal(root.right) else [root]
-}
-
-lemma NoNil(root: Tree)
-    ensures forall x :: x in TreePreorderTraversal(root) ==> x != Nil
-{
-
-}
-
-lemma tpt(root: Tree)
-    ensures forall x :: x in TreePreorderTraversal(root) ==> x != Nil
-    ensures forall x :: x in TreePreorderTraversal(root) ==> x != Nil && (x == root || x in TreePreorderTraversal(root.left) || x in TreePreorderTraversal(root.right))
-{
-
-}
-
-lemma AllChildTraversalElementsInRoot(root: Tree, elem: Tree)
-    requires elem in TreePreorderTraversal(root)
-    ensures forall child :: child in TreePreorderTraversal(elem) ==> child in TreePreorderTraversal(root)
-{
-
-}
-
-lemma TreePreorderTraversalSubstrings(root: Tree)
-    requires root != Nil
-    ensures root.left != Nil ==> isSubstring(TreePreorderTraversal(root.left), TreePreorderTraversal(root))
-    ensures root.right != Nil ==> isSubstring(TreePreorderTraversal(root.right), TreePreorderTraversal(root))
-{
-   if root.left != Nil && root.right != Nil {
-    calc {
-        TreePreorderTraversal(root);
-        [root]+TreePreorderTraversal(root.left)+TreePreorderTraversal(root.right);
-    }
-    var k := 1;
-    var j := |TreePreorderTraversal(root.left)|+1;
-    assert 0 <= k <= j <= |TreePreorderTraversal(root)| && TreePreorderTraversal(root.left) == TreePreorderTraversal(root)[1..|TreePreorderTraversal(root.left)|+1];
-
-    var s := 1+|TreePreorderTraversal(root.left)|;
-    var t := |TreePreorderTraversal(root)|;
-    assert 0 <= s <= t <= |TreePreorderTraversal(root)| && TreePreorderTraversal(root.right) == TreePreorderTraversal(root)[s..t];
-   }else if root.left != Nil && root.right == Nil {
-    calc {
-        TreePreorderTraversal(root);
-        [root]+TreePreorderTraversal(root.left);
-    }
-    var k := 1;
-    var j := |TreePreorderTraversal(root.left)|+1;
-    assert 0 <= k <= j <= |TreePreorderTraversal(root)| && TreePreorderTraversal(root.left) == TreePreorderTraversal(root)[1..j];
-   }else if root.left == Nil && root.right != Nil {
-    calc {
-        TreePreorderTraversal(root);
-        [root]+TreePreorderTraversal(root.right);
-    }
-    var k := 1;
-    var j := |TreePreorderTraversal(root.right)|+1;
-    assert 0 <= k <= j <= |TreePreorderTraversal(root)| && TreePreorderTraversal(root.right) == TreePreorderTraversal(root)[1..j];
-   }
-}
-
-lemma AllContained(root: Tree)
-    requires root != Nil
-    ensures forall x :: x in TreePreorderTraversal(root) ==> (x == root || x in TreePreorderTraversal(root.left) || x in TreePreorderTraversal(root.right))
-{
-    // tpt(root);
-    // NoNil(root);
-    // forall x | x in TreePreorderTraversal(root)
-    //     ensures x == root || x in TreePreorderTraversal(root.left) || x in TreePreorderTraversal(root.right)
-    // {
-    //     assert x != Nil;
-    //     if x == root {
-
-    //     }else if root.left != Nil && root.right != Nil {
-    //         calc {
-    //             TreePreorderTraversal(root);
-    //             [root]+TreePreorderTraversal(root.left)+TreePreorderTraversal(root.right);
-    //         }
-    //         assert x in [root]+TreePreorderTraversal(root.left)+TreePreorderTraversal(root.right);
-    //         assert x in TreePreorderTraversal(root.left) || x in TreePreorderTraversal(root.right);
-    //     }else if root.left == Nil && root.right != Nil {
-    //         calc {
-    //             TreePreorderTraversal(root);
-    //             [root]+TreePreorderTraversal(root.right);
-    //         }
-    //         assert x in [root]+TreePreorderTraversal(root.right);
-    //         assert x in TreePreorderTraversal(root.right);
-    //     }else if root.left != Nil && root.right == Nil {
-    //         calc {
-    //             TreePreorderTraversal(root);
-    //             [root]+TreePreorderTraversal(root.left);
-    //         }
-    //         assert x in [root]+TreePreorderTraversal(root.left);
-    //         assert x in TreePreorderTraversal(root.left);
-    //     }else{
-    //         assert false;
-    //     }
-
-    // }
-}
-
-lemma {:verify true} {:induction false} AllChildrenTraversalsAreSubstrings(root: Tree) 
-    requires root != Nil
-    ensures forall x ::x in TreePreorderTraversal(root) ==> isSubstring(TreePreorderTraversal(x), TreePreorderTraversal(root))
-{
-    NoNil(root);
-    AllContained(root);
-    forall x | x in TreePreorderTraversal(root) 
-        ensures isSubstring(TreePreorderTraversal(x), TreePreorderTraversal(root))
-    {
-        tpt(root);
-        if x == root {
-            var k, j := 0, |TreePreorderTraversal(root)|;
-            assert 0 <= k <= j <= |TreePreorderTraversal(root)| && TreePreorderTraversal(root) == TreePreorderTraversal(root)[k..j];
-        }else if x == root.left || x == root.right {
-           TreePreorderTraversalSubstrings(root); 
-        }else {
-            if root.left != Nil && root.right != Nil {
-                assert x != root;
-                assert TreePreorderTraversal(root) == [root] + TreePreorderTraversal(root.left) + TreePreorderTraversal(root.right);
-                if root.left != Nil  && x in TreePreorderTraversal(root.left) {
-                    AllChildrenTraversalsAreSubstrings(root.left);
-                    assert isSubstring(TreePreorderTraversal(x), TreePreorderTraversal(root.left));
-                    TreePreorderTraversalSubstrings(root);
-                    AllSubstringsAreSubstrings(TreePreorderTraversal(x), TreePreorderTraversal(root.left), TreePreorderTraversal(root));
-                }
-                if root.right != Nil && x in TreePreorderTraversal(root.right) {
-                    AllChildrenTraversalsAreSubstrings(root.right);
-                    assert isSubstring(TreePreorderTraversal(x), TreePreorderTraversal(root.right));
-                    TreePreorderTraversalSubstrings(root);
-                    AllSubstringsAreSubstrings(TreePreorderTraversal(x), TreePreorderTraversal(root.right), TreePreorderTraversal(root));
-                }
-            }else if root.left != Nil  && x in TreePreorderTraversal(root.left) {
-                AllChildrenTraversalsAreSubstrings(root.left);
-                assert isSubstring(TreePreorderTraversal(x), TreePreorderTraversal(root.left));
-                    TreePreorderTraversalSubstrings(root);
-                    AllSubstringsAreSubstrings(TreePreorderTraversal(x), TreePreorderTraversal(root.left), TreePreorderTraversal(root));
-            }else  if root.right != Nil && x in TreePreorderTraversal(root.right) {
-                AllChildrenTraversalsAreSubstrings(root.right);
-                    assert isSubstring(TreePreorderTraversal(x), TreePreorderTraversal(root.right));
-                    TreePreorderTraversalSubstrings(root);
-                    AllSubstringsAreSubstrings(TreePreorderTraversal(x), TreePreorderTraversal(root.right), TreePreorderTraversal(root));
-            }else{
-                assert x != root;
-                assert x !in TreePreorderTraversal(root.left);
-                assert x !in TreePreorderTraversal(root.right);
-                assert false;
-            }
-        }
-    }
 }
 
 lemma {:verify false} PreorderTraversalSubstrings(root: TreeNode)
@@ -357,6 +193,7 @@ lemma {:verify } PreorderTraversalChildrenAreLater1(root: TreeNode)
     }
 }
 
+
 lemma {:verify true} PreorderTraversalChildrenAreLater(root: TreeNode)
     requires root.Valid()
     //the following does not verify
@@ -374,13 +211,6 @@ lemma {:verify true} PreorderTraversalChildrenAreLater(root: TreeNode)
     // assert forall x :: x in root.repr ==> exists k: nat :: 0 <= k < |PreorderTraversal(root)| && PreorderTraversal(root)[k] == x;
 }
 
-lemma {:verify false} TreePreorderTraversalChildrenAreLater3(root: Tree, elem: Tree, k: nat) 
-    requires elem in TreePreorderTraversal(root)
-    requires TreePreorderTraversal(root)[k] == elem
-    // ensures forall child :: child in TreePreorderTraversal(elem) && child in PreorderTraversal(root) && child != elem ==> exists j: nat :: k < j < |PreorderTraversal(root)| && PreorderTraversal(root)[j] == child
-{
-
-}
 
 
 
