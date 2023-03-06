@@ -1,9 +1,10 @@
 include "../lib/seq.dfy"
-import opened Seq
 
+module BinaryTree {
+import opened Seq
 datatype Tree = Node(val: int, left: Tree, right: Tree) | Nil
 
-function method TreePreorderTraversal(root: Tree): seq<Tree>
+function TreePreorderTraversal(root: Tree): seq<Tree>
     // ensures forall x :: x in TreePreorderTraversal(root) ==> x != Nil
     // ensures forall x :: x in TreePreorderTraversal(root) ==> x != Nil && (x == root || x in TreePreorderTraversal(root.left) || x in TreePreorderTraversal(root.right))
     // ensures forall x :: x in root.repr ==> x in PreorderTraversal(root)
@@ -232,4 +233,5 @@ lemma {:verify true} TreePreorderTraversalChildrenAreLater3(root: Tree, elem: Tr
         // var s,t :| 0 <= s < t <= |TreePreorderTraversal(root)| && TreePreorderTraversal(child) == TreePreorderTraversal(root)[s..t];
         // assert j == s;
     }
+}
 }
