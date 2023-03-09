@@ -208,6 +208,7 @@ lemma SeqEq<T>(xs: seq<T>, ys: seq<T>)
     ensures xs == ys
 {
 }
+
 lemma ReverseIndexAll<T>(xs: seq<T>)
     ensures |reverse(xs)| == |xs|
     ensures forall i :: 0 <= i < |xs| ==> reverse(xs)[i] == xs[|xs| - i - 1]

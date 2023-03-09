@@ -20,15 +20,15 @@ function diameterOfBinaryTree(root: TreeNode | null): number {
   return diameter(root)[1];
 };
 */
-// include "../lib/seq.dfy"
+include "../lib/seq.dfy"
 include "../lib/binaryTree.dfy"
 import opened BinaryTree
-// import opened Seq
-function reverse<A(==)>(x: seq<A>): seq<A> 
+import opened Seq
+// function reverse<A(==)>(x: seq<A>): seq<A> 
 
-{
-    if x == [] then [] else reverse(x[1..])+[x[0]]
-}
+// {
+//     if x == [] then [] else reverse(x[1..])+[x[0]]
+// }
 
 lemma notInNotEqual<A(==)>(xs: seq<A>, elem: A)
     requires elem !in xs
@@ -96,12 +96,44 @@ predicate isValidTreePath(path: seq<Tree>, start: Tree, end: Tree) {
     isTreePath(path, start, end) && exists root: Tree :: root != Nil && root in path && (forall node: Tree :: (node in path) ==> node in TreeSet(root))
 }
 
+predicate isChild(a: Tree, b: Tree) {
+    a != Nil && (a.left == b || a.right == b)
+}
+
+predicate isParentOrChild(a: Tree, b: Tree) {
+    //a != Nil && b != Nil && (a.left == b || a.right == b || (a == b.left || a == b.right))
+    a != Nil && b != Nil && (isChild(a, b) || isChild(b, a))
+}
+
 predicate isTreePath(path: seq<Tree>, start: Tree, end: Tree) {
     if |path| == 0 then false else if |path| == 1 then start != Nil && start == end && path[0] == start else match path[0] {
         case Nil => false
-        case Node(val, left, right) => path[0] == start && (left == path[1] || right == path[1] || (path[1] != Nil && (path[0] == path[1].left || path[0] == path[1].right))) && isTreePath(path[1..], path[1], end)
+        case Node(val, left, right) => path[0] == start && path[|path|-1] == end && isParentOrChild(path[0], path[1]) && isTreePath(path[1..], path[1], end)
     }
 }
+
+predicate isTreePathAlt(path: seq<Tree>, start: Tree, end: Tree) {
+    if |path| == 0 then false else if |path| == 1 then start != Nil && start == end && path[0] == start else path[0] == start && start != Nil && end == path[|path|-1] == end && forall i :: 0 <= i < |path| - 1 ==> isParentOrChild(path[i], path[i+1])
+}
+
+lemma TreePathsAreTheSameAlt(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires isTreePath(path, start, end)
+    ensures isTreePathAlt(path, start, end)
+{
+
+}
+
+lemma TreePathsAreTheSame(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires isTreePathAlt(path, start, end)
+    ensures isTreePath(path, start, end)
+{
+
+}
+
 
 predicate isDescTreePath(path: seq<Tree>, start: Tree, end: Tree) {
     if |path| == 0 then false else if |path| == 1 then match path[0] {
@@ -113,6 +145,81 @@ predicate isDescTreePath(path: seq<Tree>, start: Tree, end: Tree) {
     }
 }
 
+lemma DescPathChildren(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires isDescTreePath(path, start, end)
+    ensures forall i :: 0 <= i < |path| - 1 ==> isChild(path[i], path[i+1])
+{
+}
+
+lemma DescPathChildrenAlt(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires path[0] == start;
+    requires path[|path|-1] == end;
+    requires forall i :: 0 <= i < |path| ==> path[i] != Nil
+    requires forall i :: 0 <= i < |path| - 1 ==> isChild(path[i], path[i+1])
+    ensures isDescTreePath(path, start, end)
+{
+}
+
+lemma DescPathChildrenReverse(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires isDescTreePath(path, start, end)
+    ensures forall i :: 0 <= i < |reverse(path)| - 1 ==> isChild(reverse(path)[i+1], reverse(path)[i])
+{
+    DescPathChildren(path, start, end);
+    ReverseIndexAll(path);
+    // assert |reverse(path)| == |path|;
+    // forall i | 0 <= i < |reverse(path)| - 1
+    //     ensures isChild(reverse(path)[i+1], reverse(path)[i])
+    // {
+    //     assert |reverse(path)| == |path|;
+    //     assert i < |path|;
+    //     if i == 0 {
+    //         assert isChild(path[i], path[i+1]);
+    //         assert reverse(path)[0] == path[|path|-1];
+    //     }else {
+
+    //     }
+    // }
+}
+
+lemma AscPathChildren(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires isAscTreePath(path, start, end)
+    ensures forall i :: 0 <= i < |path| - 1 ==> isChild(path[i+1], path[i])
+{
+}
+
+lemma AscPathChildrenAlt(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires path[0] == start;
+    requires path[|path|-1] == end;
+    requires forall i :: 0 <= i < |path| - 1 ==> isChild(path[i+1], path[i])
+    ensures isAscTreePath(path, start, end)
+{
+}
+
+lemma AscPathChildrenReverse(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires isAscTreePath(path, start, end)
+    ensures forall i :: 0 <= i < |reverse(path)| - 1 ==> isChild(reverse(path)[i], reverse(path)[i+1])
+{
+    AscPathChildren(path, start, end);
+    ReverseIndexAll(path);
+}
 predicate isAscTreePath(paths: seq<Tree>, start: Tree, end: Tree) {
     if |paths| == 0 then false else if |paths| == 1 then match paths[0] {
         case Nil => false
@@ -216,6 +323,8 @@ method TestPath() {
     var leaf := Node(3, Nil, Nil);
     var child := Node(2, Nil, leaf);
     var root := Node(1, child, rootleaf);
+    //should this be allowed?
+    assert isTreePath([rootleaf, root, rootleaf], rootleaf, rootleaf);
     assert isPath([leaf, child, root]);
     // assert isPath([leaf, child, root, rootleaf]);
     assert !isTreePath([root, rootleaf], leaf, rootleaf);
@@ -241,15 +350,28 @@ predicate validPath(path: seq<Tree>, root: Tree) {
     isPath(path) && forall node :: node in path ==> node in TreeSet(root) && root in path
 }
 
-lemma {:verify false} AscPathIsDescPath(path: seq<Tree>, start: Tree, end: Tree)
+lemma AscPathIsDescPath(path: seq<Tree>, start: Tree, end: Tree)
     requires start != Nil
     requires end != Nil
     requires |path| >= 1
     requires isAscTreePath(path, start, end)
     ensures isDescTreePath(reverse(path), end, start)
 {
-    assert path[0] == start;
-    assert path[ |path| - 1] == end;
+    AscTreePathNotNil(path, start, end);
+    ReverseIndexAll(path);
+    // reversePreservesMultiset(path);
+    if |path| == 1 {
+
+    }else{
+        // assert path[0] == start;
+        // assert path[ |path| - 1] == end;
+        // assert reverse(path)[0] == end;
+        // assert reverse(path)[|path|-1] == start;
+        AscPathChildrenReverse(path, start, end);
+        // assert forall x :: x in reverse(path) ==> x in path && x != Nil;
+        assert forall i :: 0 <= i < |reverse(path)| ==> reverse(path)[i] in path && reverse(path)[i] != Nil;
+        DescPathChildrenAlt(reverse(path), end, start);
+    }
 }
 
 lemma {:verify false} TreeHeightToDescPath(root: Tree, h: int)
@@ -367,12 +489,42 @@ lemma DescTreePathToPath(path: seq<Tree>, root: Tree, end: Tree)
     }
 }
 
+lemma AscTreePathToPath(path: seq<Tree>, root: Tree, end: Tree)
+    requires root != Nil
+    requires end != Nil
+    requires isAscTreePath(path, root, end)
+    ensures isTreePath(path, root, end)
+{
+    assert path[0] == root;
+    assert path[|path|-1] == end;
+    if |path| == 1 {
+        assert path == [root];
+        assert isAscTreePath([root], root, end);
+        assert root == end;
+        assert isTreePath([root], root, end);
+    }
+}
+
 lemma DescTreePathSets(path: seq<Tree>, root: Tree, end: Tree)
     requires root != Nil
     requires end != Nil
     requires isDescTreePath(path, root, end)
     ensures forall node :: node in path ==> node in TreeSet(root)
 {}
+
+lemma TreePathNotNil(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| >= 1
+    requires isTreePath(path, start, end)
+    ensures forall node :: node in path ==> node != Nil
+{
+    if |path| == 1 {
+    }else if |path| > 1 {
+        assert path == [path[0]]+path[1..];
+        TreePathNotNil(path[1..], path[1], end);
+    }
+}
 
 lemma AscTreePathNotNil(path: seq<Tree>, start: Tree, end: Tree)
     requires start != Nil
@@ -388,6 +540,110 @@ lemma AscTreePathNotNil(path: seq<Tree>, start: Tree, end: Tree)
     }
 }
 
+lemma DescTreePathNotNil(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| >= 1
+    requires isDescTreePath(path, start, end)
+    ensures forall node :: node in path ==> node != Nil
+{
+    if |path| == 1 {
+    }else if |path| > 1 {
+        assert path == [path[0]]+path[1..];
+        DescTreePathNotNil(path[1..], path[1], end);
+    }
+}
+
+lemma TreePathSlicesAllParentOrChild(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires isTreePath(path, start, end)
+    ensures forall i :: 0 <= i < |path| - 1 ==> isParentOrChild(path[i], path[i+1])
+{
+    TreePathSlicesValid(path, start, end);
+}
+
+lemma TreePathSlicesStillRelated(path: seq<Tree>, start: Tree, end: Tree, k: int)
+    requires start != Nil
+    requires end != Nil 
+    requires |path| > 1
+    requires isTreePath(path, start, end)
+    requires 0 < k < |path|
+    ensures forall i :: 0 <= i < k-1 ==> isParentOrChild(path[..k][i], path[..k][i+1])
+{
+    TreePathSlicesAllParentOrChild(path, start, end);
+    TreePathSlicesValid(path, start, end);
+}
+
+lemma TreePathSlices(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires isTreePath(path, start, end)
+    ensures forall k :: 0 < k <= |path| ==> isTreePath(path[..k], start, path[k-1])
+{
+    //TreePathSlicesValid(path, start, end);
+    TreePathNotNil(path, start, end);
+    forall k | 0 < k <= |path| 
+        ensures isTreePath(path[..k], start, path[k-1])
+    {
+        if k == 1 {
+            assert isTreePath(path[..1], start, path[0]);
+        } else if k == |path|  {
+            assert path[..|path|] == path;
+            assert isTreePath(path[..|path|], start, path[ |path|-1 ]);
+        }else{
+            assert path == path[..k]+path[k..];
+            var slice := path[..k];
+            assert slice[0] == start;
+            assert slice[|slice|-1] == path[k-1];
+            assert path[k-1] in path;
+            assert path[k-1] != Nil;
+            TreePathSlicesStillRelated(path, start, end, k);
+            assert isTreePathAlt(slice, start, path[k-1]);
+            TreePathsAreTheSame(slice, start, path[k-1]);
+            assert isTreePath(path[..k], start, path[k-1]);
+        }
+
+    }
+}
+
+lemma TreePlusTree(path: seq<Tree>, start: Tree, root: Tree, pathtwo: seq<Tree>, end: Tree)
+    requires start != Nil && root != Nil && end != Nil
+    requires start != root && root != end
+    requires isTreePath(path, start, root)
+    requires isTreePath(pathtwo, root, end)
+    ensures isTreePath(path + pathtwo[1..], start, end)
+{
+    TreePathsAreTheSameAlt(path, start, root);
+    TreePathsAreTheSameAlt(pathtwo, root, end);
+    assert isTreePathAlt(path + pathtwo[1..], start, end);
+    TreePathsAreTheSame(path + pathtwo[1..], start, end);
+}
+
+lemma DescPlusAsc(path: seq<Tree>, start: Tree, root: Tree, pathtwo: seq<Tree>, end: Tree)
+    requires start != Nil && root != Nil && end != Nil
+    requires start != root && root != end
+    requires isDescTreePath(path, root, end)
+    requires isAscTreePath(pathtwo, start, root)
+    ensures isTreePath(pathtwo + path[1..], start, end)
+{
+    var result := pathtwo + path[1..];
+    assert result[0] == start;
+    DescTreePathToPath(path, root, end);
+    AscTreePathToPath(pathtwo, start, root);
+    TreePlusTree(pathtwo, start, root, path, end);
+}
+
+lemma TreePathSlicesValid(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires isTreePath(path, start, end)
+    ensures forall k :: 0 <= k < |path| ==> isTreePath(path[k..], path[k], end);
+{
+
+}
 lemma AscTreePathSlices(path: seq<Tree>, start: Tree, end: Tree)
     requires start != Nil
     requires end != Nil
