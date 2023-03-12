@@ -65,6 +65,13 @@ lemma injectiveSeqs<A>(xs: seq<A>, ys: seq<A>)
 
 }
 
+lemma reverseInjective<A>(list: seq<A>)
+    requires injectiveSeq(list)
+    ensures injectiveSeq(reverse(list))
+{
+    ReverseIndexAll(list);
+}
+
 function max(left: int, right: int): int {
     if left > right then left else right
 }
@@ -251,13 +258,24 @@ predicate isDescPath(paths: seq<Tree>, root: Tree) {
     }
 }
 
-
+ghost predicate ChildrenAreSeparate(root: Tree) {
+    // root != Nil && forall node :: node in TreeSet(root) && node != Nil ==> TreeSet(node.left) !! TreeSet(node.right)
+    root == Nil || (root != Nil && (TreeSet(root.left) !! TreeSet(root.right)) && ChildrenAreSeparate(root.left) && ChildrenAreSeparate(root.right))
+}
 
 lemma TreeSetChildInTreeSet(root: Tree, child: Tree) 
     requires root != Nil
     requires child != Nil && child in TreeSet(root)
     ensures TreeSet(child) <= TreeSet(root)
 {}
+
+lemma TreeSetChildrenDoNotIntersect(root: Tree) 
+    requires root != Nil
+    requires ChildrenAreSeparate(root)
+    ensures TreeSet(root.left) !! TreeSet(root.right)
+{
+
+}
 
 lemma parentNotInTreeSet(parent: Tree, root: Tree)
     requires parent != Nil && parent != root && (parent.left == root || parent.right == root)
@@ -323,6 +341,8 @@ method TestPath() {
     var leaf := Node(3, Nil, Nil);
     var child := Node(2, Nil, leaf);
     var root := Node(1, child, rootleaf);
+
+    var test := Node(10, rootleaf, rootleaf);
     //should this be allowed?
     assert isTreePath([rootleaf, root, rootleaf], rootleaf, rootleaf);
     assert isPath([leaf, child, root]);
@@ -350,6 +370,10 @@ predicate validPath(path: seq<Tree>, root: Tree) {
     isPath(path) && forall node :: node in path ==> node in TreeSet(root) && root in path
 }
 
+predicate isValidPath(path: seq<Tree>, root: Tree) {
+    forall node :: node in path ==> node in TreeSet(root)
+}
+
 lemma AscPathIsDescPath(path: seq<Tree>, start: Tree, end: Tree)
     requires start != Nil
     requires end != Nil
@@ -374,6 +398,22 @@ lemma AscPathIsDescPath(path: seq<Tree>, start: Tree, end: Tree)
     }
 }
 
+lemma DescPathIsAscPath(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| >= 1
+    requires isDescTreePath(path, start, end)
+    ensures isAscTreePath(reverse(path), end, start)
+{
+    DescTreePathNotNil(path, start, end);
+    ReverseIndexAll(path);
+    // reversePreservesMultiset(path);
+    if |path| == 1 {} else {
+        DescPathChildrenReverse(path, start, end);
+        AscPathChildrenAlt(reverse(path), end, start);
+    }
+}
+
 lemma {:verify false} TreeHeightToDescPath(root: Tree, h: int)
     requires root != Nil
     requires h == TreeHeight(root)
@@ -395,19 +435,30 @@ lemma  TreeHeightLeaf(root: Tree)
 lemma TreeHeightToDescTreePath(root: Tree, h: int) 
     requires root != Nil
     requires h == TreeHeight(root)
-    ensures exists end: Tree, path: seq<Tree> :: (end != Nil && end.left == Nil && end.right == Nil)  && isDescTreePath(path, root, end) && |path| == h+1
+    ensures exists end: Tree, path: seq<Tree> :: (end != Nil && end.left == Nil && end.right == Nil && end in TreeSet(root))  && isDescTreePath(path, root, end) && |path| == h+1 && isValidPath(path, root) && injectiveSeq(path)
 {
     if h == 0 {
         assert isDescTreePath([root], root, root);
+        assert isValidPath([root], root);
+        assert injectiveSeq([root]);
+        assert root in TreeSet(root);
     }else if h >= 1 {
         if root.left != Nil && TreeHeight(root.left) == h-1 {
             TreeHeightToDescTreePath(root.left, h-1);
-            var end: Tree, path: seq<Tree> :| end != Nil && end.left == Nil && end.right == Nil && isDescTreePath(path, root.left, end) && |path| == h;
+            TreeSetChildInTreeSet(root, root.left);
+            var end: Tree, path: seq<Tree> :| end != Nil && end.left == Nil && end.right == Nil && end in TreeSet(root.left) && isDescTreePath(path, root.left, end) && |path| == h && isValidPath(path, root.left) && injectiveSeq(path);
             assert end != Nil && isDescTreePath([root]+path, root, end) && |[root]+path| == h+1;
+            parentNotInTreeSet(root, root.left);
+            assert injectiveSeq([root]+path);
+            assert isValidPath([root]+path, root);
         } else if root.right != Nil && TreeHeight(root.right) == h-1 {
             TreeHeightToDescTreePath(root.right, h-1);
-            var end: Tree, path: seq<Tree> :| end != Nil && end.left == Nil && end.right == Nil && isDescTreePath(path, root.right, end) && |path| == h;
+            TreeSetChildInTreeSet(root, root.right);
+            var end: Tree, path: seq<Tree> :| end != Nil && end.left == Nil && end.right == Nil && end in TreeSet(root.right) && isDescTreePath(path, root.right, end) && |path| == h && isValidPath(path, root.right) && injectiveSeq(path);
             assert end != Nil && isDescTreePath([root]+path, root, end) && |[root]+path| == h+1;
+            parentNotInTreeSet(root, root.right);
+            assert injectiveSeq([root]+path);
+            assert isValidPath([root]+path, root);
         }
     }
 }
@@ -634,6 +685,19 @@ lemma DescPlusAsc(path: seq<Tree>, start: Tree, root: Tree, pathtwo: seq<Tree>, 
     DescTreePathToPath(path, root, end);
     AscTreePathToPath(pathtwo, start, root);
     TreePlusTree(pathtwo, start, root, path, end);
+    assert |pathtwo + path[1..]| == |pathtwo| + |path| -1;
+}
+
+lemma DescPlusDesc(path: seq<Tree>, start: Tree, root: Tree, pathtwo: seq<Tree>, end: Tree)
+    requires start != Nil && root != Nil && end != Nil
+    requires start != root && root != end
+    requires isDescTreePath(path, root, end)
+    requires isDescTreePath(pathtwo, root, start)
+    ensures isTreePath(reverse(pathtwo) + path[1..], start, end)
+{
+    DescPathIsAscPath(pathtwo, root, start);
+    assert isAscTreePath(reverse(pathtwo), start, root);
+    DescPlusAsc(path, start, root, reverse(pathtwo), end);
 }
 
 lemma TreePathSlicesValid(path: seq<Tree>, start: Tree, end: Tree)
@@ -762,13 +826,13 @@ lemma DescPathToPath(path: seq<Tree>, root: Tree)
     }
 }
 
-lemma {:verify }  TreeHeightToTreePath(root: Tree, h: int)
+lemma TreeHeightToTreePath(root: Tree, h: int)
     requires root != Nil
     requires h == TreeHeight(root)
-    ensures exists path: seq<Tree>, end: Tree :: isTreePath(path, root, end)// && |path| == h - 1
+    ensures exists path: seq<Tree>, end: Tree :: isTreePath(path, root, end) && |path| == h + 1
 {
     TreeHeightToDescTreePath(root, h);
-    var end: Tree, path: seq<Tree> :| end != Nil && isDescTreePath(path, root, end);
+    var end: Tree, path: seq<Tree> :| (end != Nil && end.left == Nil && end.right == Nil)  && isDescTreePath(path, root, end) && |path| == h+1;
     DescTreePathToPath(path, root, end);
 }
 
@@ -843,16 +907,61 @@ lemma {:verify false} {:induction false} TreeHeightToPath(root: Tree, h: int)
     }
 }
 
-method {:verify false} diameter(root: Tree) returns (heightDim: (int, int))
+lemma BothCases(root: Tree, left: Tree, right: Tree, h1: int, h2: int)
+    requires root != Nil && left != Nil && right != Nil
+    // requires TreeSet(left) !! TreeSet(right)
+    requires ChildrenAreSeparate(root)
+    requires root.left == left && root.right == right
+    requires TreeHeight(root.left) == h1
+    requires TreeHeight(root.right) == h2
+    ensures exists start: Tree, end: Tree, path: seq<Tree> :: isTreePath(path, start, end) && |path| == h1+h2 + 3 && isValidPath(path, root) && injectiveSeq(path);
+    // ensures exists start: Tree, end: Tree, path: seq<Tree> :: isTreePath(path, start, end) && |path| == h1+h2 + 3 && isValidPath(path, root);
+{
+
+        TreeHeightToDescTreePath(right, h2);
+        var rpath: seq<Tree>, rend: Tree :| (rend != Nil && rend.left == Nil && rend.right == Nil && rend in TreeSet(right))  && isDescTreePath(rpath, right, rend) && |rpath| == h2+1 && isValidPath(rpath, right) && injectiveSeq(rpath);
+        assert rend in TreeSet(right);
+        assert isDescTreePath([root]+rpath, root, rend);
+        DescTreePathToPath(rpath, root.right, rend);
+        TreeHeightToDescTreePath(left, h1);
+        var lpath: seq<Tree>, lend: Tree :| (lend != Nil && lend.left == Nil && lend.right == Nil && lend in TreeSet(left))  && isDescTreePath(lpath, left, lend) && |lpath| == h1+1 && isValidPath(lpath, left) && injectiveSeq(lpath);
+        assert isDescTreePath([root]+lpath, root, lend);
+        DescTreePathToPath(lpath, root.left, lend);
+        
+        parentNotInTreeSet(root, left);
+        parentNotInTreeSet(root, right);
+        assert root !in TreeSet(left);
+        assert root !in TreeSet(right);
+        assert lend in TreeSet(left);
+        assert injectiveSeq([root]+lpath);
+        reverseInjective([root]+lpath);
+        assert rend != lend;
+        DescPlusDesc([root]+rpath, lend, root, [root]+lpath, rend);
+        assert isTreePath(reverse([root]+lpath)+rpath, lend, rend);
+        assert |[root]+lpath| == h1+2;
+        ReverseIndexAll([root]+lpath);
+        assert |[root]+lpath| == h1+2;
+        assert |reverse([root]+lpath)+rpath| == h1+h2+3;
+        injectiveSeqs(reverse([root]+lpath), rpath);
+}
+
+ghost predicate largestPath(path: seq<Tree>, root: Tree) {
+    forall start: Tree, end: Tree, paths: seq<Tree> :: injectiveSeq(paths) && isTreePath(paths, start, end) && isValidPath(paths, root) ==> |path| >= |paths|
+}
+
+method diameter(root: Tree) returns (heightDim: (int, int))
+    requires ChildrenAreSeparate(root)
+    ensures root == Nil ==> heightDim == (-1, -1)
+    ensures root != Nil && root.left == Nil && root.right == Nil ==> heightDim == (0, 0)
     ensures heightDim.0 == TreeHeight(root)
-    ensures root != Nil ==> exists path: seq<Tree> :: isPath(path) && |path| - 1 == heightDim.1 && forall node :: node in path ==> node in TreeSet(root)
+    ensures root != Nil ==> exists start: Tree, end: Tree, path: seq<Tree> :: isTreePath(path, start, end) && |path| - 1 == heightDim.1  && isValidPath(path, root) && injectiveSeq(path)
 {
     if root == Nil {
         return (-1, -1);
     }
     if root.left == Nil && root.right == Nil {
         ghost var path := [root];
-        // assert isPath(path) && |path| - 1 == 0;
+        assert isTreePath([root], root, root);
         return (0,0);
     }
     var leftDiameter := diameter(root.left);
@@ -860,11 +969,77 @@ method {:verify false} diameter(root: Tree) returns (heightDim: (int, int))
     var height := max(leftDiameter.0, rightDiameter.0) + 1;
     var dim := leftDiameter.0 + rightDiameter.0 + 2;
     var maxDiameter := max(leftDiameter.1, max(rightDiameter.1, dim));
+
+    if root.right != Nil && root.left != Nil {
+        BothCases(root, root.left, root.right, leftDiameter.0, rightDiameter.0);
+        var rstart: Tree, rend: Tree, rightPath: seq<Tree> :| isTreePath(rightPath, rstart, rend) && |rightPath| - 1 == rightDiameter.1;
+        var lstart: Tree, lend: Tree, leftPath: seq<Tree> :| isTreePath(leftPath, lstart, lend) && |leftPath| - 1 == leftDiameter.1;
+        var start, end, path :| isTreePath(path, start, end) && |path| == leftDiameter.0 + rightDiameter.0 + 3 && injectiveSeq(path);
+        if leftDiameter.1 > max(rightDiameter.1, dim) {
+            assert maxDiameter == leftDiameter.1;
+        }else if rightDiameter.1 > dim {
+            assert maxDiameter == rightDiameter.1;
+        }else{
+            assert dim >= rightDiameter.1;
+            assert dim >= leftDiameter.1;
+            assert |path| - 1 == dim;
+            assert maxDiameter == dim;
+        }
+    } else if root.right != Nil {
+        var rstart: Tree, rend: Tree, rightPath: seq<Tree> :| isTreePath(rightPath, rstart, rend) && |rightPath| - 1 == rightDiameter.1 && isValidPath(rightPath, root);
+        TreeHeightToDescTreePath(root.right, rightDiameter.0);
+        var rpath: seq<Tree>, end: Tree :| (end != Nil && end.left == Nil && end.right == Nil && end in TreeSet(root.right))  && isDescTreePath(rpath, root.right, end) && |rpath| == rightDiameter.0+1 && isValidPath(rpath, root.right) && injectiveSeq(rpath);
+        assert isDescTreePath([root]+rpath, root, end);
+        DescTreePathToPath([root]+rpath, root, end);
+        assert |[root]+rpath| == rightDiameter.0+2;
+        parentNotInTreeSet(root, root.right);
+        assert injectiveSeq([root]+rpath);
+        assert leftDiameter.0 == -1;
+        assert leftDiameter.1 == -1;
+        if leftDiameter.1 > max(rightDiameter.1, dim) {
+            assert false;
+        }else if rightDiameter.1 > dim {
+            assert maxDiameter == rightDiameter.1;
+        }else{
+            assert dim >= rightDiameter.1;
+            assert dim >= leftDiameter.1;
+            calc {
+                dim;
+                leftDiameter.0 + rightDiameter.0 + 2;
+                -1 + rightDiameter.0 + 2;
+                rightDiameter.0 + 1;
+            }
+            assert maxDiameter == dim;
+            assert |[root]+rpath| - 1 == dim;
+        }
+    } else if root.left != Nil {
+        var lstart: Tree, lend: Tree, leftPath: seq<Tree> :| isTreePath(leftPath, lstart, lend) && |leftPath| - 1 == leftDiameter.1;
+        TreeHeightToDescTreePath(root.left, leftDiameter.0);
+        var lpath: seq<Tree>, end: Tree :| (end != Nil && end.left == Nil && end.right == Nil && end in TreeSet(root.left))  && isDescTreePath(lpath, root.left, end) && |lpath| == leftDiameter.0+1 && isValidPath(lpath, root.left) && injectiveSeq(lpath);
+        assert isDescTreePath([root]+lpath, root, end);
+        DescTreePathToPath([root]+lpath, root, end);
+        parentNotInTreeSet(root, root.left);
+        assert injectiveSeq([root]+lpath);
+        assert dim == leftDiameter.0 + 1;
+        assert rightDiameter.0 == -1;
+        assert rightDiameter.1 == -1;
+        assert leftDiameter.1 >= 0;
+        if leftDiameter.1 > max(rightDiameter.1, dim) {
+            assert maxDiameter == leftDiameter.1;
+        }else if rightDiameter.1 > dim {
+            assert false;
+        }else{
+            assert dim >= rightDiameter.1;
+            assert dim >= leftDiameter.1;
+            assert maxDiameter == dim;
+        }
+    }
+
     return (height, maxDiameter);
 }
 
 method diameterOfBinaryTree(root: Tree) returns (maxDiameter: int)
-
+    requires ChildrenAreSeparate(root)
 {
     var result := diameter(root);
     maxDiameter := result.1;
