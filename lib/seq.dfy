@@ -112,9 +112,58 @@ module Seq {
         // var z,q :| 0 <= z <= q <= |super| && super[z..q] == super[k..j][s..t];
     }
 
-
     predicate IsSuffix<T(==)>(xs: seq<T>, ys: seq<T>) {
         |xs| <= |ys| && xs == ys[|ys| - |xs|..]
+    }
+    
+    predicate IsPrefix<T(==)>(xs: seq<T>, ys: seq<T>) {
+        |xs| <= |ys| && xs == ys[..|xs|]
+    }
+
+    lemma PrefixRest<T(==)>(xs: seq<T>, ys: seq<T>)
+        requires IsPrefix(xs, ys)
+        ensures exists yss: seq<T> :: ys == xs + yss && |yss| == |ys|-|xs|;
+    {
+        assert ys == ys[..|xs|] + ys[|xs|..];
+    }
+
+    lemma IsSuffixReversed<T(==)>(xs: seq<T>, ys: seq<T>)
+        requires IsSuffix(xs, ys)
+        ensures IsPrefix(reverse(xs), reverse(ys))
+    {
+        ReverseIndexAll(xs);
+        ReverseIndexAll(ys);
+    }
+
+    lemma IsPrefixReversed<T(==)>(xs: seq<T>, ys: seq<T>)
+        requires IsPrefix(xs, ys)
+        ensures IsSuffix(reverse(xs), reverse(ys))
+    {
+        ReverseIndexAll(xs);
+        ReverseIndexAll(ys);
+    }
+
+    lemma IsPrefixReversedAll<T(==)>(xs: seq<T>, ys: seq<T>)
+        requires IsPrefix(reverse(xs), reverse(ys))
+        ensures IsSuffix(reverse(reverse(xs)), reverse(reverse(ys)))
+    {
+        ReverseIndexAll(xs);
+        ReverseIndexAll(ys);
+        assert |ys| == |reverse(ys)|;
+        assert reverse(xs) == reverse(ys)[..|reverse(xs)|];
+        assert reverse(xs) == reverse(ys)[..|xs|];
+        PrefixRest(reverse(xs), reverse(ys));
+        var yss :| reverse(ys) == reverse(xs) + yss && |yss| == |ys|-|xs|;
+        reverseReverseIdempotent(ys);
+        ReverseConcat(reverse(xs), yss);
+        calc {
+            reverse(reverse(ys));
+            ys;
+            reverse(reverse(xs) + yss);
+            reverse(yss)+reverse(reverse(xs));
+            == {reverseReverseIdempotent(xs);}
+            reverse(yss)+xs;
+        }
     }
 
     predicate IsSuffix2<T(==)>(xs: seq<T>, ys: seq<T>) {
@@ -204,6 +253,14 @@ module Seq {
         requires 0 <= i < |xs|
         ensures |reverse(xs)| == |xs|
         ensures reverse(xs)[i] == xs[|xs| - i - 1]
+    {
+        ReverseIndexAll(xs);
+        assert forall i :: 0 <= i < |xs| ==> reverse(xs)[i] == xs[|xs| - i - 1];
+    }
+    lemma ReverseIndexBack<T>(xs: seq<T>, i: int)
+        requires 0 <= i < |xs|
+        ensures |reverse(xs)| == |xs|
+        ensures reverse(xs)[|xs| - i - 1] == xs[i]
     {
         ReverseIndexAll(xs);
         assert forall i :: 0 <= i < |xs| ==> reverse(xs)[i] == xs[|xs| - i - 1];
