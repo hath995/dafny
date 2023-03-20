@@ -31,7 +31,6 @@ ghost predicate TokensEqual<T(==)>(left: seq<T>, right: seq<T>) {
     |left| == |right| && forall i: nat :: i < |left| ==> left[i] == right[i]
 }
 
-
 lemma PrefixesEqual<T(==)>(left: seq<T>, right: seq<T>)
     requires TokensEqual(reverse(left), reverse(right))
     ensures TokensEqual(left, right)
@@ -48,35 +47,10 @@ lemma PrefixesEqual<T(==)>(left: seq<T>, right: seq<T>)
     }
 }
 
-
-
-lemma reverseSplits<T(==)>(xs: seq<T>)
-    requires |xs| > 1
-    requires |reverse(xs)| == |xs|
-    ensures reverse(reverse(xs)[..|xs|-1]) == xs[1..]
-{
-    assert xs == [xs[0]] + xs[1..];
-    assert |reverse(xs)| == |xs|;
-    calc {
-        reverse(xs);
-        reverse(xs[1..])+reverse([xs[0]]);
-        reverse(xs[1..])+[xs[0]];
-    }
-    assert reverse(xs)[..|xs|-1] == reverse(xs[1..]);
-    calc {
-        reverse(reverse(xs)[..|xs|-1]);
-        reverse(reverse(xs[1..]));
-        == {reverseReverseIdempotent(xs[1..]);}
-        xs[1..];
-    }
-}
-
-
 method matchDomain(domain: seq<Token>, allowedDomain: seq<Token>) returns (allowed: bool)
     requires forall i: nat :: i < |domain| ==> domain[i] != Wildcard
     requires Wildcard in allowedDomain ==> |allowedDomain| > 1 && allowedDomain[0] == Wildcard && forall i: nat :: 0 < i < |allowedDomain| ==> allowedDomain[i] != Wildcard
     ensures allowed <==> TokensEqual(domain, allowedDomain) || (Wildcard in allowedDomain && IsSuffix(allowedDomain[1..], domain) && |domain| >= |allowedDomain| )
-    // ensures !allowed ==> !(TokensEqual(domain, allowedDomain) || (Wildcard in allowedDomain && IsSuffix(allowedDomain[1..], domain) && |domain| >= |allowedDomain| ))
 {
     var splitDomain := reverse(domain);
     var splitAllowedDomain := reverse(allowedDomain);
@@ -92,7 +66,7 @@ method matchDomain(domain: seq<Token>, allowedDomain: seq<Token>) returns (allow
         invariant Wildcard !in splitAllowedDomain[..i]
     {
         if splitAllowedDomain[i] == Wildcard {
-            reverseSplits(allowedDomain);
+            reverseInitList(allowedDomain);
             assert reverse(splitAllowedDomain[..(|splitAllowedDomain|-1)]) == allowedDomain[1..];
             IsPrefixReversed(splitAllowedDomain[..i], splitDomain);
             reverseReverseIdempotent(domain);

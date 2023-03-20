@@ -306,6 +306,27 @@ module Seq {
         // SeqEq(reverse(reverse(xs)), xs);
     }
 
+    lemma reverseInitList<T>(xs: seq<T>)
+        requires |xs| > 1
+        requires |reverse(xs)| == |xs|
+        ensures reverse(reverse(xs)[..|xs|-1]) == xs[1..]
+    {
+        assert xs == [xs[0]] + xs[1..];
+        assert |reverse(xs)| == |xs|;
+        calc {
+            reverse(xs);
+            reverse(xs[1..])+reverse([xs[0]]);
+            reverse(xs[1..])+[xs[0]];
+        }
+        assert reverse(xs)[..|xs|-1] == reverse(xs[1..]);
+        calc {
+            reverse(reverse(xs)[..|xs|-1]);
+            reverse(reverse(xs[1..]));
+            == {reverseReverseIdempotent(xs[1..]);}
+            xs[1..];
+        }
+    }
+    
     method SeqTest() {
         var t1 := [4,5,6,1,2,3];
         // assert t1 == [4,5,6]+[1,2,3];
