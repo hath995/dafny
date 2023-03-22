@@ -61,21 +61,15 @@ ghost function addOne(ss: set<seq<Steps>>): set<seq<Steps>>
 lemma SeqsNotEqualImplication<T>(xs: seq<T>, ys: seq<T>, someT: T)
     requires xs != ys
     ensures (exists i: nat :: i < |xs| && i <|ys| && xs[i] != ys[i]) || |xs| < |ys| || |ys| < |xs|
-{
-
-}
+{}
 
 lemma UnequalSeqs<T>(xs: seq<T>, ys: seq<T>, someT: T)
     requires xs != ys
     ensures [someT]+xs != [someT]+ys
 {
-    if |xs| < |ys| {
-
-    }else if |ys| > |xs| {
-
-    }else if i: nat :| i < |xs| && i <|ys| && xs[i] != ys[i] {
+    if |xs| < |ys| {} else if |ys| > |xs| {}
+    else if i: nat :| i < |xs| && i <|ys| && xs[i] != ys[i] {
         assert ([someT]+xs)[i+1] != ([someT]+ys)[i+1];
-
     }
 }
 
