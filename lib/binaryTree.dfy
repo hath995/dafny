@@ -42,7 +42,7 @@ lemma rootNotInChildren(root: Tree)
 lemma {:verify } TPTInjective(root: Tree) 
     requires validTree(root)
     requires root != Nil
-    ensures injectiveSeq(TreePreorderTraversal(root))
+    ensures distinct(TreePreorderTraversal(root))
 {
     NoNil(root);
     tpt(root);
@@ -55,8 +55,8 @@ lemma {:verify } TPTInjective(root: Tree)
         }
         TPTInjective(root.left);
         TPTInjective(root.right);
-        injectiveSeqs([root], TreePreorderTraversal(root.left));
-        injectiveSeqs([root] + TreePreorderTraversal(root.left), TreePreorderTraversal(root.right));
+        distincts([root], TreePreorderTraversal(root.left));
+        distincts([root] + TreePreorderTraversal(root.left), TreePreorderTraversal(root.right));
 
     }else if root.right != Nil {
         calc{
@@ -64,7 +64,7 @@ lemma {:verify } TPTInjective(root: Tree)
             [root]+TreePreorderTraversal(root.right);
         }
         TPTInjective(root.right);
-        injectiveSeqs([root], TreePreorderTraversal(root.right));
+        distincts([root], TreePreorderTraversal(root.right));
     }else if root.left != Nil {
 
         calc{
@@ -72,7 +72,7 @@ lemma {:verify } TPTInjective(root: Tree)
             [root]+TreePreorderTraversal(root.left);
         }
         TPTInjective(root.left);
-        injectiveSeqs([root], TreePreorderTraversal(root.left));
+        distincts([root], TreePreorderTraversal(root.left));
     }
 }
 
@@ -199,7 +199,7 @@ lemma TreeChildrenAreLater(root: Tree)
 
 lemma {:verify true} TreePreorderTraversalChildrenAreLater3(root: Tree, elem: Tree, k: nat) 
     // requires validTree(root)
-    requires injectiveSeq(TreePreorderTraversal(root))
+    requires distinct(TreePreorderTraversal(root))
     requires k < |TreePreorderTraversal(root)|
     requires elem in TreePreorderTraversal(root)
     requires elem != Nil

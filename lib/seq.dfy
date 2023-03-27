@@ -1,5 +1,6 @@
 
 module Seq {
+    export reveals *
     predicate substring1<A(==)>(sub: seq<A>, super: seq<A>) {
         exists k :: 0 <= k < |super| && sub <= super[k..]
     }
@@ -26,52 +27,7 @@ module Seq {
             }
     }
 
-    lemma notInNotEqual<A>(xs: seq<A>, elem: A)
-        requires elem !in xs
-        ensures forall k :: 0 <= k < |xs| ==> xs[k] != elem
-    {
 
-    }
-
-    predicate injectiveSeq<A(==)>(s: seq<A>) {
-        forall x,y :: x != y && 0 <= x <= y < |s| ==> s[x] != s[y]
-    }
-
-    lemma injectiveSeqs<A>(xs: seq<A>, ys: seq<A>)
-        requires injectiveSeq(xs)
-        requires injectiveSeq(ys)
-        requires forall x :: x in xs ==> x !in ys 
-        requires forall y :: y in ys ==> y !in xs 
-        ensures injectiveSeq(xs+ys)
-    {
-        var len := |xs + ys|;
-        forall x,y | x != y && 0 <= x <= y < |xs+ys| 
-            ensures (xs+ys)[x] != (xs+ys)[y] 
-        {
-            if 0 <= x < |xs| && 0 <= y < |xs| {
-                assert (xs+ys)[x] != (xs+ys)[y];
-            }else if |xs| <= x < |xs+ys| && |xs| <= y < |xs+ys| {
-                assert (xs+ys)[x] != (xs+ys)[y];
-
-            }else if 0 <= x < |xs| && |xs| <= y < |xs+ys| {
-                notInNotEqual(ys, xs[x]);
-                assert (xs+ys)[x] != (xs+ys)[y];
-            }
-        }
-
-    }
-
-    // if k == 0 && j == 0 {
-    //     assert xs[k..j] == [];
-    //     assert xs[k..j][s..t] == [];
-    // }else if k == 0 && j == |xs| {
-    //     assert xs[k..j] == xs;
-    //     assert xs[k..j][s..t] == xs[(k+s)..(k+s+t-s)];
-    // }else if k == |xs| && j == |xs| {
-    //     assert xs[k..j] == [];
-    //     assert xs[k..j][s..t] == xs[(k+s)..(k+s+t-s)];
-    // }else 
-    // if 0 <= k <= j <= |xs| {
 
     lemma AllSubstringsAreSubstrings<A>(subsub: seq<A>, sub: seq<A>, super: seq<A>)
         requires isSubstring(sub, super)
@@ -247,6 +203,189 @@ module Seq {
         // ReverseIndexAll(reverse(xs));
         // ReverseIndexAll(xs);
         // SeqEq(reverse(reverse(xs)), xs);
+    }
+
+    lemma notInNotEqual<A>(xs: seq<A>, elem: A)
+        requires elem !in xs
+        ensures forall k :: 0 <= k < |xs| ==> xs[k] != elem
+    {
+
+    }
+
+    predicate distinct<A(==)>(s: seq<A>) {
+        forall x,y :: x != y && 0 <= x <= y < |s| ==> s[x] != s[y]
+    }
+
+    lemma distincts<A>(xs: seq<A>, ys: seq<A>)
+        requires distinct(xs)
+        requires distinct(ys)
+        requires forall x :: x in xs ==> x !in ys 
+        requires forall y :: y in ys ==> y !in xs 
+        ensures distinct(xs+ys)
+    {
+        var len := |xs + ys|;
+        forall x,y | x != y && 0 <= x <= y < |xs+ys| 
+            ensures (xs+ys)[x] != (xs+ys)[y] 
+        {
+            if 0 <= x < |xs| && 0 <= y < |xs| {
+                assert (xs+ys)[x] != (xs+ys)[y];
+            }else if |xs| <= x < |xs+ys| && |xs| <= y < |xs+ys| {
+                assert (xs+ys)[x] != (xs+ys)[y];
+
+            }else if 0 <= x < |xs| && |xs| <= y < |xs+ys| {
+                notInNotEqual(ys, xs[x]);
+                assert (xs+ys)[x] != (xs+ys)[y];
+            }
+        }
+
+    }
+
+    lemma reverseDistinct<A>(list: seq<A>)
+        requires distinct(list)
+        ensures distinct(reverse(list))
+    {
+        ReverseIndexAll(list);
+    }
+
+    lemma multisetItems<A>(list: seq<A>, item: A)
+        requires item in list
+        requires multiset(list)[item] > 1
+        ensures exists i,j :: 0 <= i < j < |list| && list[i] == item && list[j] == item && i != j
+    {
+        var k :| 0 <= k < |list| && list[k] == item;
+        var rest := list[..k]+list[k+1..];
+        assert list == list[..k]+[item]+list[k+1..];
+        assert multiset(list) == multiset(list[..k])+multiset(list[k+1..])+multiset{item};
+    }
+
+    lemma distinctMultisetIs1<A>(list: seq<A>, item: A) 
+        requires distinct(list)
+        requires item in list
+        ensures multiset(list)[item] == 1
+    {
+        if multiset(list)[item] == 0 {
+            assert false;
+        }
+        if multiset(list)[item] > 1 {
+            multisetItems(list, item);
+            var i,j :| 0 <= i < j < |list| && list[i] == item && list[j] == item && i != j;
+        }
+    }
+
+    lemma indistinctMultisetIsGreaterThan1<A>(list: seq<A>) 
+        requires !distinct(list)
+        ensures exists item :: multiset(list)[item] > 1
+    {
+        var x,y :| x != y && 0 <= x <= y < |list| && list[x] == list[y];
+        var item := list[x];
+        assert x < y;
+        assert list == list[..x] + [item] + list[(x+1)..y] + [item] + list[y+1..];
+        assert multiset(list)[item] > 1;
+    }
+
+    lemma multisetIsGreaterThan1Indistinct<A>(list: seq<A>) 
+        requires exists item :: multiset(list)[item] > 1
+        ensures !distinct(list)
+    {
+        var item :| multiset(list)[item] > 1;
+        var x :| 0 <= x < |list| && list[x] == item;
+        assert list == list[..x] + [item] + list[x+1..];
+        var y :| x != y && 0 <= y < |list| && list[y] == item;
+    }
+
+    lemma indistinctPlusX<A>(items: seq<A>, x: A)
+        requires !distinct(items)
+        ensures forall i :: 0 <= i < |items| ==> !distinct(items[..i]+[x]+items[i..])
+    {
+        forall i | 0 <= i < |items| 
+        ensures !distinct(items[..i]+[x]+items[i..])
+        {
+            indistinctMultisetIsGreaterThan1(items);
+            var item :| multiset(items)[item] > 1;
+            var itemsPlus := items[..i]+[x]+items[i..];
+            assert items == items[..i]+items[i..];
+            calc {
+                multiset(itemsPlus);
+                multiset(items[..i])+multiset(items[i..])+multiset{x};
+                multiset(items)+multiset{x};
+            }
+            assert multiset(itemsPlus)[item] > 1;
+            multisetIsGreaterThan1Indistinct(itemsPlus);
+        }
+    }
+
+    lemma pigeonHolesMultiset<A>(items: set<A>, list: seq<A>, n: nat)
+        requires |items| == n
+        requires forall x :: x in list ==> x in items
+        requires |list| > n
+        ensures exists item :: multiset(list)[item] > 1
+    {
+
+        if x :| multiset(list)[x] > 1 {
+        }else if x :| multiset(list)[x] == 1 {
+            assert x in list;
+            var i :| 0 <= i < |list| && list[i] == x;
+            assert list == list[..i] + [x] + list[i+1..];
+            assert list == list[..i] + list[i..];
+            assert multiset(list) == multiset(list[..i])+multiset(list[i+1..])+multiset{x};
+            var rest := list[..i]+list[i+1..];
+            assert multiset(rest)[x] == 0;
+
+            forall y | y in rest 
+                ensures y in items-{x}
+            {
+                assert y in items; 
+                assert y != x;
+            }
+            if n -1 == 0 {
+                // assert |items| == 1;
+                // assert x in items;
+                assert |items-{x}| == 0;
+                assert list[0] in list;
+                assert list[0] == x;
+                assert list[1] in list;
+                assert list[1] == x;
+                assert false;
+            }else{
+                pigeonHolesMultiset(items-{x}, rest, n-1);
+                var item :| multiset(rest)[item] > 1;
+                assert multiset(list) == multiset(rest) + multiset{x};
+                assert multiset(list)[item] > 1;
+            }
+        }else if x :| multiset(list)[x] == 0 {}
+    }
+
+    lemma pigeonHoles<A>(items: set<A>, list: seq<A>, n: nat)
+        requires |items| == n
+        requires forall x :: x in list ==> x in items
+        requires |list| > n
+        ensures !distinct(list)
+    {
+        if x :| multiset(list)[x] > 1 {
+            multisetItems(list, x);
+            var i,j :| 0 <= i < j < |list| && list[i] == x && list[j] == x && i != j;
+        }else if x :| multiset(list)[x] == 1 {
+            assert x in list;
+            var i :| 0 <= i < |list| && list[i] == x;
+            assert list == list[..i] + [x] + list[i+1..];
+            assert list == list[..i] + list[i..];
+            assert multiset(list) == multiset(list[..i])+multiset(list[i+1..])+multiset{x};
+            assert multiset(list)[x] == 1;
+            var rest := list[..i]+list[i+1..];
+            assert multiset(rest)[x] == 0;
+            forall y | y in rest 
+                ensures y in items-{x}
+            {
+                assert y in items; 
+                assert y != x;
+            }
+            pigeonHoles(items-{x}, rest, n-1);
+            assert !distinct(rest);
+            indistinctPlusX(rest, x);
+
+            assert !distinct(list);
+
+        }else if x :| multiset(list)[x] == 0 {}
     }
 
     method SeqTest() {
