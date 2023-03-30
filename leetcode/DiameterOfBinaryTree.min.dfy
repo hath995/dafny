@@ -117,6 +117,19 @@ lemma DescPathChildrenAlt(path: seq<Tree>, start: Tree, end: Tree)
 {
 }
 
+lemma TreePathChildrenAlt(path: seq<Tree>, start: Tree, end: Tree) 
+    requires start != Nil
+    requires end != Nil
+    requires |path| >= 1
+    requires path[0] == start;
+    requires path[|path|-1] == end;
+    requires forall i :: 0 <= i < |path| ==> path[i] != Nil
+    requires forall i :: 0 <= i < |path| - 1 ==> isParentOrChild(path[i], path[i+1])
+    ensures isTreePath(path, start, end)
+{
+
+}
+
 lemma DescPathChildrenReverse(path: seq<Tree>, start: Tree, end: Tree)
     requires start != Nil
     requires end != Nil
@@ -149,6 +162,14 @@ predicate isAscTreePath(paths: seq<Tree>, start: Tree, end: Tree) {
     }
 }
 
+lemma AscPathChildren(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires end != Nil
+    requires |path| > 1
+    requires isAscTreePath(path, start, end)
+    ensures forall i :: 0 <= i < |path| - 1 ==> isChild(path[i+1], path[i])
+{
+}
 
 ghost predicate ChildrenAreSeparate(root: Tree) {
     // root != Nil && forall node :: node in TreeSet(root) && node != Nil ==> TreeSet(node.left) !! TreeSet(node.right)
@@ -316,7 +337,7 @@ lemma {:verify false} DescTreePathToTreeHeight(root: Tree, h: int, end: Tree, pa
 }
 
 
-lemma {:verify false} TreeHeightToDescTreePath(root: Tree, h: int) 
+lemma {:verify } TreeHeightToDescTreePath(root: Tree, h: int) 
     requires root != Nil
     requires h == TreeHeight(root)
     ensures exists end: Tree, path: seq<Tree> :: (isLeaf(end) && end in TreeSet(root))  && isDescTreePath(path, root, end) && |path| == h+1 && isValidPath(path, root) && distinct(path)
@@ -333,6 +354,7 @@ lemma {:verify false} TreeHeightToDescTreePath(root: Tree, h: int)
             var end: Tree, path: seq<Tree> :| isLeaf(end) && end in TreeSet(root.left) && isDescTreePath(path, root.left, end) && |path| == h && isValidPath(path, root.left) && distinct(path);
             assert end != Nil && isDescTreePath([root]+path, root, end) && |[root]+path| == h+1;
             parentNotInTreeSet(root, root.left);
+            distincts([root], path);
             assert distinct([root]+path);
             assert isValidPath([root]+path, root);
         } else if root.right != Nil && TreeHeight(root.right) == h-1 {
@@ -341,6 +363,7 @@ lemma {:verify false} TreeHeightToDescTreePath(root: Tree, h: int)
             var end: Tree, path: seq<Tree> :| isLeaf(end) && end in TreeSet(root.right) && isDescTreePath(path, root.right, end) && |path| == h && isValidPath(path, root.right) && distinct(path);
             assert end != Nil && isDescTreePath([root]+path, root, end) && |[root]+path| == h+1;
             parentNotInTreeSet(root, root.right);
+            distincts([root], path);
             assert distinct([root]+path);
             assert isValidPath([root]+path, root);
         }
@@ -373,6 +396,26 @@ ghost predicate isPath(path: seq<Tree>, start: Tree, end: Tree, root: Tree) {
     isTreePath(path,start, end) && isValidPath(path, root) && distinct(path)
 }
 
+lemma isPathSlices(path: seq<Tree>, start: Tree, end: Tree, root: Tree) 
+    requires |path| >= 1
+    requires isPath(path, start, end, root)
+    ensures forall i :: 0 < i < |path| ==> isPath(path[..(i+1)], start, path[i], root) && isPath(path[i..], path[i], end, root)
+{
+    TreePathNotNil(path, start, end);
+    TreePathsAreTheSameAlt(path, start, end);
+    forall i | 0 < i < |path| 
+        ensures isPath(path[..(i+1)], start, path[i], root) && isPath(path[i..], path[i], end, root)
+    {
+        assert path == path[..i]+path[i..];
+        TreePathChildrenAlt(path[..(i+1)], start, path[i]);
+        TreePathChildrenAlt(path[i..], path[i], end);
+        assert isValidPath(path[..i], root);
+        assert isValidPath(path[i..], root);
+        assert distinct(path[..i]);
+        assert distinct(path[i..]);
+    }
+}
+
 ghost predicate isDiameter(path: seq<Tree>, start: Tree, end: Tree, root: Tree) {
     isPath(path, start, end, root) && forall paths: seq<Tree>, pathStart: Tree, pathEnd: Tree :: isPath(paths, pathStart, pathEnd, root) ==> |path| >= |paths|
 }
@@ -383,9 +426,9 @@ ghost function tallestChild(root: Tree): Tree {
 
 lemma RightBounded(root: Tree, h: int) 
     requires root != Nil && root.right != Nil
-    requires TreeHeight(root.right) == h
-    ensures TreeHeight(root.right.right) <= h-1
-    ensures TreeHeight(root.right.left) <= h-1
+    requires TreeHeight(root) == h
+    ensures TreeHeight(root.right) <= h-1
+    ensures TreeHeight(root.left) <= h-1
 {
 
 }
@@ -400,6 +443,205 @@ lemma RootBounded(root: Tree, h: int)
 
 predicate isLeaf(node: Tree ) {
     node != Nil && node.right == Nil && node.left == Nil
+}
+
+lemma notRootNotDesc(root: Tree, start: Tree, end: Tree, path: seq<Tree>)
+    requires isValidPath(path, root)
+    requires root in path
+    ensures start != root ==> !isDescTreePath(path, start, end)
+{
+    if isDescTreePath(path, start, end) {
+        descRoot(root, start, end, path);
+    }
+}
+
+lemma descRoot(root: Tree, start: Tree, end: Tree, path: seq<Tree>) 
+    requires isDescTreePath(path, start, end)
+    requires isValidPath(path, root)
+    requires root in path
+    ensures start == root
+{
+    if start == root {
+
+    }else {
+        assert path[0] != root;
+        assert path == [path[0]]+path[1..];
+        assert root in path[1..];
+        DescPathChildren(path, start, end);
+        var i :| 0 < i< |path| && path[i] == root;
+        assert isChild(path[i-1], root);
+        parentNotInTreeSet(path[i-1], root);
+        assert false;
+    }
+}
+
+lemma LastNotRootNotAsc(root: Tree, start: Tree, end: Tree, path: seq<Tree>)
+    requires isValidPath(path, root)
+    requires root in path
+    ensures end != root ==> !isAscTreePath(path, start, end)
+{
+    if isAscTreePath(path, start, end) {
+        ascRoot(root, start, end, path);
+    }
+}
+
+lemma ascRoot(root: Tree, start: Tree, end: Tree, path: seq<Tree>)
+    requires isAscTreePath(path, start, end)
+    requires isValidPath(path, root)
+    requires root in path
+    ensures end == root
+{
+    if end == root {
+
+    }else {
+        assert path[|path|-1] != root;
+        AscPathChildren(path,start,end);
+        var i :| 0 <= i < |path|-1 && path[i] == root;
+        assert isChild(path[i+1], path[i]);
+        parentNotInTreeSet(path[i+1], root);
+        assert false;
+    }
+}
+
+lemma parentsAreTheSame(p1: Tree, p2: Tree, child: Tree)
+    requires p1 != Nil && p2 != Nil && child != Nil
+    requires isChild(p1, child)
+    requires isChild(p2, child)
+    ensures p1 == p2
+
+lemma pathStartingAtRootDescSlice(root: Tree, start: Tree, end: Tree, path: seq<Tree>, i: int)
+    requires root != Nil
+    requires root in path && path[0] == root
+    requires ChildrenAreSeparate(root)
+    requires isPath(path, start, end, root)
+    requires 0 < i <= |path|
+    requires isDescTreePath(path[0..i], root, path[i-1])
+    requires |path| >= 1
+    decreases |path| - i
+    ensures isDescTreePath(path, root, end)
+{
+    TreePathNotNil(path, start, end);
+    TreePathsAreTheSameAlt(path, start,end);
+    if i < |path| {
+        if isChild(path[i-1], path[i]) {
+            if i == 1 {
+                assert isDescTreePath(path[0..1], root, path[i-1]);
+            }else{
+
+                DescPathChildren(path[0..i], root, path[i-1]);
+            }
+            DescPathChildrenAlt(path[0..(i+1)], root, path[i]);
+            assert isDescTreePath(path[0..(i+1)], root, path[i]);
+            pathStartingAtRootDescSlice(root, start, end, path, i+1);
+        }else if isChild(path[i], path[i-1]) {
+            if i == 1 {
+                parentNotInTreeSet(path[i],root);
+            }else{
+                DescPathChildren(path[0..i], root, path[i-1]);
+                assert isChild(path[i-2],path[i-1]);
+                parentsAreTheSame(path[i-2], path[i], path[i-1]);
+                assert path[i-2] == path[i];
+                assert false;
+            }
+            assert false;
+        }else{
+            assert !isParentOrChild(path[i-1], path[i]);
+            assert false;
+        }
+    }else{
+        assert i == |path|;
+        assert isDescTreePath(path[0..|path|], root, path[|path|-1]);
+        assert path[0..|path|] == path;
+    }
+}
+
+lemma pathStartingAtRootDesc(root: Tree, start: Tree, end: Tree, path: seq<Tree>)
+    requires root != Nil
+    requires root in path && path[0] == root
+    requires ChildrenAreSeparate(root)
+    requires isPath(path, start, end, root)
+    requires |path| >= 1
+    decreases |path|
+    ensures isDescTreePath(path, root, end)
+{
+    if |path| == 1 {
+
+    }else{
+        if isChild(path[1], root) {
+            parentNotInTreeSet(path[1], root);
+            assert false;
+        }else if isChild(root, path[1]) {
+            assert path[1] == root.left || path[1] == root.right;
+            assert isDescTreePath([root, path[1]], root, path[1]);
+            pathStartingAtRootDescSlice(root, start, end, path, 1);
+        }
+    }
+}
+
+lemma pathEndingAtRootAsc(root: Tree, start: Tree, end: Tree, path: seq<Tree>)
+    requires root != Nil
+    requires root in path && path[|path|-1] == root
+    requires ChildrenAreSeparate(root)
+    requires isPath(path, start, end, root)
+    requires |path| >= 1
+    decreases |path|
+    ensures isAscTreePath(path, root, end)
+// by a similar argument to pathStartingAtRootDesc
+
+lemma pathOptions(root: Tree, start: Tree, end: Tree, path: seq<Tree>)
+    requires root != Nil
+    requires root in path
+    requires ChildrenAreSeparate(root)
+    requires isPath(path, start, end, root)
+    decreases |path|
+    ensures isAscTreePath(path, start, end) || isDescTreePath(path, start, end) || exists i :: 0 < i < |path|-1 && path[i] == root && isAscTreePath(path[..(i+1)], start, root) && isDescTreePath(path[i..], root, end)
+{
+    if isAscTreePath(path, start, end) {
+
+    } else if isDescTreePath(path, start, end) {
+
+    }else{
+        assert !isAscTreePath(path, start, end);
+        assert !isDescTreePath(path, start, end);
+        if path[0] == root {
+            if |path| == 1 {
+                assert exists i :: 0 <= i < |path| && path[i] == root && isAscTreePath(path[..(i+1)], start, root) && isDescTreePath(path[i..], root, end);
+            }else{
+                assert isAscTreePath(path[..(0+1)], start, root);
+                // assert isDescTreePath(path[0..], root, end);
+                // assert exists i :: 0 <= i < |path| && path[i] == root && isAscTreePath(path[..(i+1)], start, root) && isDescTreePath(path[i..], root, end);
+                pathStartingAtRootDesc(root, start, end, path);
+                assert false;
+            }
+        }else if path[|path|-1] == root {
+            pathEndingAtRootAsc(root,start, end, path);
+            assert false;
+        }else{
+            assert root in path[1..];
+            isPathSlices(path, start, end, root);
+            var i :| 0 < i < |path|-1 && path[i] == root;
+            // assert path == path[..(i+1)]+path[i+1..];
+            assert path[..i+1][|path[..i+1]|-1] == root;
+            assert path[i..][0] == root;
+            assert isPath(path[..(i+1)], start, path[i], root);
+            assert isPath(path[i..], root, end, root);
+            pathStartingAtRootDesc(root, path[i], end, path[i..]);
+            pathEndingAtRootAsc(root, start, path[i], path[..(i+1)]);
+        }
+    }
+}
+
+lemma {:verify false} rootPathAtMost3h(root: Tree, start: Tree, end: Tree, path: seq<Tree>, h: int)
+    requires root != Nil
+    requires root in path
+    requires ChildrenAreSeparate(root)
+    requires TreeHeight(root) == h
+    requires isPath(path, start, end, root)
+    ensures |path| <= 2 * h + 1
+{
+    assert start in TreeSet(root);
+    assert end in TreeSet(root);
+    RootBounded(root, h);
 }
 
 lemma {:verify false} {:induction false} DiameterAtMost3h(root: Tree, start: Tree, end: Tree, path: seq<Tree>, h: int)
@@ -470,48 +712,106 @@ lemma {:verify false} DiameterIncludesRootOrInDeepestTree(root: Tree, start: Tre
     }
 }
 
-// lemma {:verify false} TreeHeightToMaxDescTreePath(root: Tree, h: int, end: Tree, path: seq<Tree>) 
-//     requires root != Nil
-//     requires ChildrenAreSeparate(root)
-//     requires h == TreeHeight(root)
-//     requires end != Nil && end.left == Nil && end.right == Nil && end in TreeSet(root)
-//     requires isDescTreePath(path, root, end) && |path| == h+1 && isValidPath(path, root) && distinct(path)
-//     ensures forall rootedPath: seq<Tree>, anyend: Tree :: isDescTreePath(rootedPath, root, anyend) && isLeaf(anyend) && isValidPath(rootedPath, root) && distinct(rootedPath) ==> |rootedPath| <= |path|
+lemma childHeightIsLessThanPath(root: Tree, child:Tree, h: int, end: Tree)
+    requires root != Nil
+    requires ChildrenAreSeparate(root)
+    requires h == TreeHeight(root)
+    requires isChild(root, child)
+    requires TreeHeight(child) <= h-1
+    ensures forall rootedPath: seq<Tree>, anyend: Tree :: isDescTreePath(rootedPath, child, anyend) && isLeaf(anyend) && isValidPath(rootedPath, child) && distinct(rootedPath) ==> |rootedPath| <= h
+{
+    forall rootedPath: seq<Tree>, anyend: Tree | isDescTreePath(rootedPath, child, anyend) && isLeaf(anyend) && isValidPath(rootedPath, child) && distinct(rootedPath)
+        ensures |rootedPath| <= h
+    {
+        if |rootedPath| <= h {
+
+        }else if |rootedPath| > h {
+            TreeHeightMax(child);
+            S(rootedPath, child, anyend);
+            if anyend in TreeSet(child.left) {
+                if child.left == Nil {
+                    assert false;
+                }else{
+                    childHeightIsLessThanPath(child, child.left, TreeHeight(child), anyend);
+                    assert forall childPaths: seq<Tree>, anyend: Tree ::  isDescTreePath(childPaths, child.left, anyend) && isLeaf(anyend) && isValidPath(childPaths, child.left) && distinct(childPaths) ==> |childPaths| <= TreeHeight(child);
+                    assert rootedPath[1] == child.left;
+                    assert rootedPath == [child] + rootedPath[1..];
+                    isDescPathAndValidImpliesAllValid(rootedPath,child,anyend);
+                    assert isDescTreePath(rootedPath[1..], child.left, anyend);
+                    assert isValidPath(rootedPath[1..], child.left);
+                    assert |rootedPath[1..]| <= TreeHeight(child);
+                    assert false;
+                }
+
+            }else if anyend in TreeSet(child.right) {
+                if child.right == Nil {
+                    assert false;
+                }else{
+
+                    childHeightIsLessThanPath(child, child.right, TreeHeight(child), anyend);
+                    assert forall childPaths: seq<Tree>, anyend: Tree ::  isDescTreePath(childPaths, child.right, anyend) && isLeaf(anyend) && isValidPath(childPaths, child.right) && distinct(childPaths) ==> |childPaths| <= TreeHeight(child);
+                    isDescPathAndValidImpliesAllValid(rootedPath,child,anyend);
+                    assert false;
+                }
+            }else{
+                assert anyend !in TreeSet(child.right) && anyend !in TreeSet(child.left);
+                if anyend == child {
+
+                }else{
+                    assert anyend !in TreeSet(child);
+                    assert false;
+                }
+            }
+
+        }
+    }
+}
+
+lemma TreeHeightToMaxDescTreePath(root: Tree, h: int, end: Tree, path: seq<Tree>) 
+    requires root != Nil
+    requires ChildrenAreSeparate(root)
+    requires h == TreeHeight(root)
+    requires end != Nil && end.left == Nil && end.right == Nil && end in TreeSet(root)
+    requires isDescTreePath(path, root, end) && |path| == h+1 && isValidPath(path, root) && distinct(path)
+    ensures forall rootedPath: seq<Tree>, anyend: Tree :: isDescTreePath(rootedPath, root, anyend) && isLeaf(anyend) && isValidPath(rootedPath, root) && distinct(rootedPath) ==> |rootedPath| <= |path|
     
-// {
-//     TreeHeightMax(root);
-//     if h == 0 {
+{
+    TreeHeightMax(root);
+    RootBounded(root, h);
+    forall rootedPath: seq<Tree>, anyend: Tree | isDescTreePath(rootedPath, root, anyend) && isLeaf(anyend) && isValidPath(rootedPath, root) && distinct(rootedPath)
+        ensures |rootedPath| <= |path|
+    {
+        assert rootedPath[0] == root;
+        assert |rootedPath| >= 1;
+        if |rootedPath| == 1 {
 
-//     } else if h > 0 {
-//         // if rootedPath: seq<Tree>, anyend: Tree :| isDescTreePath(rootedPath, root, anyend) && isValidPath(rootedPath, root) && distinct(rootedPath) && |rootedPath| > |path| {
-//         if rootedPath: seq<Tree>, anyend: Tree :| isDescTreePath(rootedPath, root, anyend) && anyend.left == Nil && anyend.right == Nil && isValidPath(rootedPath, root) && distinct(rootedPath) {
-//             if root.left != Nil && root.right == Nil {
-//                 assert TreeHeight(root.left) == h - 1;
-//             } else if root.left == Nil && root.right != Nil {
-//                 assert TreeHeight(root.right) == h - 1;
-//             } else if root.left != Nil && root.right != Nil {
-//                 if TreeHeight(root.left) >= TreeHeight(root.right) {
-//                     assert TreeHeight(root.left) == h - 1;
-//                 }else{
-//                     assert TreeHeight(root.right) == h - 1;
-//                     assert TreeHeight(root.left) < h - 1;
-//                     if anyend in TreeSet(root.left) && |rootedPath| > |path| {
-//                         assert rootedPath[0] == root;
-//                         S(rootedPath, root, anyend);
-//                         assert rootedPath[1] == root.left;
-//                         assert |rootedPath| > h;
-//                         assert false;
-//                     }else if anyend in TreeSet(root.right) {
+        }else{
+            S(rootedPath, root, anyend);
+            if anyend in TreeSet(root.left) {
+                childHeightIsLessThanPath(root, root.left, h, anyend);
+                assert forall childPaths: seq<Tree>, anyend: Tree ::  isDescTreePath(childPaths, root.left, anyend) && isLeaf(anyend) && isValidPath(childPaths, root.left) && distinct(childPaths) ==> |childPaths| <= h;
+                isDescPathAndValidImpliesAllValid(rootedPath,root,anyend);
+                assert isDescTreePath(rootedPath[1..], root.left, anyend);
+                assert |rootedPath[1..]| <= h;
+                assert |rootedPath| <= h+1;
+            }else if anyend in TreeSet(root.right) {
+                childHeightIsLessThanPath(root, root.right, h, anyend);
+                isDescPathAndValidImpliesAllValid(rootedPath,root,anyend);
+                assert isDescTreePath(rootedPath[1..], root.right, anyend);
+                assert |rootedPath[1..]| <= h;
+                assert |rootedPath| <= h+1;
+            }else{
+                if anyend == root {
 
-//                     }
-//                 }
-//             }
-//         }
-        
-//     }else{
-//         assert false;
-//     }
-// }
+                }else{
+                    assert anyend !in TreeSet(root);
+                    assert false;
+                }
+            }
+        }
+    }
+   
+}
 
 lemma DescTreePathNoChildren(path: seq<Tree>, root: Tree, end: Tree)
     requires root != Nil
@@ -608,11 +908,26 @@ lemma DescTreePathNotNil(path: seq<Tree>, start: Tree, end: Tree)
     requires |path| >= 1
     requires isDescTreePath(path, start, end)
     ensures forall node :: node in path ==> node != Nil
+    ensures forall i :: 0 <= i < |path| ==> path[i] != Nil
 {
     if |path| == 1 {
     }else if |path| > 1 {
         assert path == [path[0]]+path[1..];
         DescTreePathNotNil(path[1..], path[1], end);
+    }
+}
+
+lemma TreePathNotNil(path: seq<Tree>, start: Tree, end: Tree)
+    requires start != Nil
+    requires |path| >= 1
+    requires isTreePath(path, start, end)
+    ensures forall node :: node in path ==> node != Nil
+    ensures forall i :: 0 <= i < |path| ==> path[i] != Nil
+{
+    if |path| == 1 {
+    }else if |path| > 1 {
+        assert path == [path[0]]+path[1..];
+        TreePathNotNil(path[1..], path[1], end);
     }
 }
 
@@ -681,6 +996,7 @@ lemma BothCases(root: Tree, left: Tree, right: Tree, h1: int, h2: int)
         assert root !in TreeSet(left);
         assert root !in TreeSet(right);
         assert lend in TreeSet(left);
+        distincts([root], lpath);
         assert distinct([root]+lpath);
         reverseDistinct([root]+lpath);
         assert rend != lend;
