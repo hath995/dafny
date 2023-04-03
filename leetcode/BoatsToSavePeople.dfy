@@ -55,8 +55,14 @@ predicate allSafe(boats: seq<seq<nat>>, limit: nat) {
     forall boat :: boat in boats ==> isSafeBoat(boat, limit)
 }
 
+predicate sorted(list: seq<int>)
+{
+    forall i,j :: 0 <= i < j < |list| ==> list[i] <= list[j]
+}
+
 method numRescueBoats(people: seq<nat>, limit: nat) returns (boats: nat)
     requires |people| >= 1
+    requires sorted(people)
     requires forall i: nat :: i < |people| ==> 1 <= people[i] <= limit
     ensures exists boatConfig: seq<seq<nat>> :: multisetEqual(boatConfig, people) && allSafe(boatConfig, limit) && boats == |boatConfig|// && forall boatConfigs :: multisetEqual(boatConfigs, people) && allSafe(boatConfigs, limit) ==> boats <= |boatConfigs|
 {
@@ -69,39 +75,29 @@ method numRescueBoats(people: seq<nat>, limit: nat) returns (boats: nat)
     ghost var safeBoats: seq<seq<nat>> := [];
     while lower <= upper 
         invariant 0 <= lower <= |people|
-        // invariant lower + upper <= |people|
         invariant lower-1 <= upper < |people|
         invariant visitedUpper == multiset(people[upper+1..])
         invariant visitedLower == multiset(people[..lower])
-        // invariant remaining == multiset(people[lower..upper])
         invariant allSafe(safeBoats, limit)
         invariant multisetAdd(safeBoats) == visitedLower + visitedUpper;
         invariant |safeBoats| == boats
-        // invariant multiset(people) == remaining + visitedLower + visitedLower
     {
-        // assert people == people[..lower] + people[lower..upper] + people[upper..];
         if people[upper] == limit || people[upper] + people[lower] > limit {
             boats := boats + 1;
-            // assume upper >= 0;
             assert isSafeBoat([people[upper]], limit);
-            // assert multisetAdd(safeBoats) == visitedLower + visitedUpper;
             safeBoats := [[people[upper]]] + safeBoats;
             assert visitedUpper == multiset(people[upper+1..]);
             ghost var gu := people[upper+1..];
             assert multiset(gu) == visitedUpper;
             assert people[upper..] == [people[upper]] + gu;
             visitedUpper := visitedUpper + multiset{people[upper]};
-            // remaining := remaining - multiset{people[upper]};
-            // assert multiset(people) == remaining + visitedLower + visitedLower;
             upper := upper - 1;
             assert people[(upper+1)..] == [people[upper+1]] + gu;
-            assert visitedUpper == multiset(people[upper+1..]);
         }else{
             ghost var gl := people[..lower];
             boats := boats + 1;
             if lower == upper {
                 visitedLower := visitedLower + multiset{people[lower]};
-                // remaining := remaining - multiset{people[lower]};
                 assert isSafeBoat([people[lower]], limit);
                 safeBoats := [[people[lower]]] + safeBoats;
             }else{
@@ -109,12 +105,10 @@ method numRescueBoats(people: seq<nat>, limit: nat) returns (boats: nat)
                 assert multiset(gu) == visitedUpper;
                 visitedUpper := visitedUpper + multiset{people[upper]};
                 visitedLower := visitedLower + multiset{people[lower]};
-                // remaining := remaining - multiset{people[upper], people[lower]};
                 assert isSafeBoat([people[upper], people[lower]], limit);
                 safeBoats := [[people[upper], people[lower]]] + safeBoats;
                 upper := upper - 1;
                 assert people[(upper+1)..] == [people[upper+1]] + gu;
-                assert visitedUpper == multiset(people[upper+1..]);
             }
             lower := lower + 1;
             assert people[..lower] == gl + [people[lower-1]];
