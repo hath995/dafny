@@ -62,6 +62,17 @@ module BTreePQ refines PriorityQueue {
         IsBinaryHeap(pq) && IsBalanced(pq)
     }
 
+    lemma BraunTreeValid(pq: PQueue)
+        requires Valid(pq)
+        ensures IsBinaryHeap(pq) && IsBalanced(pq)
+    {}
+
+    lemma {:induction false} ChildrenValid(pq: PQueue)
+        requires Valid(pq)
+        requires pq != Leaf
+        ensures Valid(pq.left) && Valid(pq.right)
+    {}
+
     ghost function Elements ... {
         match pq
         case Leaf => multiset{}
@@ -109,7 +120,7 @@ module BTreePQ refines PriorityQueue {
 
 
     function DeleteMin(pq: PQueue): PQueue
-        requires !IsEmpty(pq)
+        requires Valid(pq) && !IsEmpty(pq)
     {
         if pq.left == Leaf || pq.right == Leaf  then pq.left 
         else if pq.left.x <= pq.right.x then Node(pq.left.x, pq.right, DeleteMin(pq.left))
@@ -118,7 +129,7 @@ module BTreePQ refines PriorityQueue {
 
 
 
-    function ReplaceRoot(pq: PQueue, y: int): PQueue 
+    function ReplaceRoot(pq: PQueue, y: int): PQueue
         requires !IsEmpty(pq)
     {
         if pq.left == Leaf || (y <= pq.left.x && (pq.right == Leaf || y <= pq.right.x)) then
@@ -131,11 +142,24 @@ module BTreePQ refines PriorityQueue {
             Node(pq.right.x, pq.left, ReplaceRoot(pq.right, y))
     }
 
+    lemma ReplaceRootHelper(pq: PQueue, y: int, pq': PQueue, right: PQueue)
+        requires Valid(pq) && !IsEmpty(pq)
+        requires Valid(pq.right)
+        requires pq.right != Leaf && pq.left.x >= pq.right.x
+        requires right == ReplaceRoot(pq.right, y)
+        requires !(pq.left == Leaf  || (y <= pq.left.x && (pq.right == Leaf || y <= pq.right.x)))
+        requires Valid(right)
+        requires |Elements(right)| == |Elements(pq.right)|
+        requires Elements(pq.right) + multiset{y}  == Elements(right) + multiset{pq.right.x}
+        requires pq' == Node(pq.right.x, pq.left, right)
+        ensures Valid(pq')
+    {}
+
     lemma {:induction false} ReplaceRootCorrect(pq: PQueue, y: int) 
         requires Valid(pq) && !IsEmpty(pq)
         ensures var pq' := ReplaceRoot(pq, y);
         Valid(pq') && Elements(pq) + multiset{y} == Elements(pq') + multiset{pq.x} && |Elements(pq)| == |Elements(pq')|
-        // Elements(pq) + multiset{y} == Elements(pq') + multiset{pq.x} && |Elements(pq)| == |Elements(pq')|
+        //Elements(pq) + multiset{y} == Elements(pq') + multiset{pq.x} && |Elements(pq)| == |Elements(pq')|
     {
         if pq.left == Leaf  || (y <= pq.left.x && (pq.right == Leaf || y <= pq.right.x)) {
             var pq' := Node(y, pq.left, pq.right);
@@ -152,6 +176,7 @@ module BTreePQ refines PriorityQueue {
             var left := ReplaceRoot(pq.left, y);
             var pq' := Node(pq.left.x, left, pq.right);
             assert pq' == ReplaceRoot(pq, y);
+            ChildrenValid(pq);
             ReplaceRootCorrect(pq.left, y);
             calc {
                 Elements(pq) + multiset{y};
@@ -170,6 +195,8 @@ module BTreePQ refines PriorityQueue {
             var pq' := Node(pq.right.x, pq.left, right);
             assert pq' == ReplaceRoot(pq, y);
             ReplaceRootCorrect(pq.right, y);
+            ChildrenValid(pq);
+            ReplaceRootHelper(pq, y, pq', right);
             calc {
                 Elements(pq) + multiset{y};
                 multiset{pq.x} + Elements(pq.left) + Elements(pq.right) + multiset{y};
@@ -189,18 +216,23 @@ module BTreePQ refines PriorityQueue {
         DeleteMinCorrect(pq);       
     }
 
-    lemma {:verify }  {:induction false} DeleteMinCorrect(pq: PQueue)
+    lemma {:induction false} DeleteMinCorrect(pq: PQueue)
         requires Valid(pq) && pq != Leaf
         ensures var pq' := DeleteMin(pq);
         Valid(pq') && Elements(pq') + multiset{pq.x} == Elements(pq) &&
         |Elements(pq')| == |Elements(pq)| - 1
     {
+        BraunTreeValid(pq);
+        assert IsBalanced(pq);
         if pq.left == Leaf || pq.right == Leaf {
             var pq' := pq.left;
             assert DeleteMin(pq) == pq';
             assert Valid(pq');
             assert Elements(pq') + multiset{pq.x} == Elements(pq);
         } else if pq.left.x <= pq.right.x {
+            // assert IsBalanced(pq);
+            // BraunTreeValid(pq.left);
+            // ChildrenValid(pq);
             var pq' := Node(pq.left.x, pq.right, DeleteMin(pq.left));
             assert pq' == DeleteMin(pq);
             DeleteMinCorrect(pq.left);
@@ -219,6 +251,9 @@ module BTreePQ refines PriorityQueue {
             assert Valid(pq');
             assert Elements(pq') + multiset{pq.x} == Elements(pq);
         } else {
+            // assert IsBalanced(pq);
+            ChildrenValid(pq);
+            // BraunTreeValid(pq.left);
             var left, right := ReplaceRoot(pq. right, pq.left.x), DeleteMin(pq.left);
             var pq' := Node(pq.right.x, left, right);
 
