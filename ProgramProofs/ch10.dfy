@@ -5,7 +5,7 @@ module PriorityQueue {
     predicate IsEmpty(pq: PQueue)
     function Insert(pq: PQueue, y: int): PQueue
     function RemoveMin(pq: PQueue): (int, PQueue)
-        requires  !IsEmpty(pq)
+        requires Valid(pq) && !IsEmpty(pq)
     ghost function Elements(pq: PQueue): multiset<int>
     ghost predicate Valid(pq: PQueue)
     lemma EmptyCorrect()
