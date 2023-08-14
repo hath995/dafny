@@ -79,6 +79,27 @@ module BinaryTree {
         }
     }
 
+    predicate isAscTreePathAlt(path: seq<Tree>, start: Tree, end: Tree) {
+        if |path| == 0 then false else if |path| == 1 then start != Nil && start == end && path[0] == start else path[0] == start && start != Nil && end == path[|path|-1] && forall i :: 0 <= i < |path| -1 ==> isChild(path[i+1], path[i])
+    }
+
+    lemma AscTreePathAreTheSame(path: seq<Tree>, start: Tree, end: Tree) 
+        requires start != Nil && end != Nil
+        requires isAscTreePath(path, start, end)
+        ensures isAscTreePathAlt(path, start, end)
+    {
+        AscTreePathNotNil(path, start, end);
+    }
+
+    lemma AscTreePathAreTheSameAlt(path: seq<Tree>, start: Tree, end: Tree) 
+        requires start != Nil && end != Nil
+        requires isAscTreePathAlt(path, start, end)
+        ensures isAscTreePath(path, start, end)
+    {
+        // AscTreePathNotNil(path, start, end);
+    }
+    
+
     ghost predicate ChildrenAreSeparate(root: Tree) {
         root == Nil || (root != Nil && (TreeSet(root.left) !! TreeSet(root.right)) && ChildrenAreSeparate(root.left) && ChildrenAreSeparate(root.right))
     }
@@ -324,6 +345,66 @@ module BinaryTree {
     {
 
     }
+    
+    lemma TreePathSplit(path: seq<Tree>, start: Tree, end: Tree) 
+        requires start != Nil
+        requires end != Nil
+        requires |path| > 1
+        requires isTreePathAlt(path, start, end)
+        ensures forall i :: 1 <= i < |path| ==> isTreePath(path[..i], start, path[i-1])
+    {
+        TreePathSplitAlt(path, start, end);
+        TreePathsAreTheSame(path, start, end);
+        TreePathNotNil(path, start, end);
+        forall i | 1 <= i < |path| 
+            ensures isTreePath(path[..i], start, path[i-1])
+        {
+            TreePathChildrenAlt(path[..i], start, path[i-1]);
+        }
+    }
+
+    lemma TreePathSplitAlt(path: seq<Tree>, start: Tree, end: Tree) 
+        requires start != Nil
+        requires end != Nil
+        requires |path| > 1
+        requires isTreePathAlt(path, start, end)
+        ensures forall i :: 1 <= i < |path| ==> isTreePathAlt(path[..i], start, path[i-1])
+    {
+
+    }
+
+    lemma TreePathsCanSplit(path: seq<Tree>, start: Tree, end: Tree, i: nat)
+        requires start != Nil
+        requires end != Nil
+        requires 1 <= i < |path|
+        requires |path| > 1
+        requires isTreePath(path, start, end)
+        ensures isTreePath(path[..i],start, path[i-1])
+        ensures isTreePath(path[i..],path[i], end)
+    {
+        TreePathNotNil(path, start, end);
+        TreePathsAreTheSameAlt(path, start, end);
+        var left := path[..i];
+        var right := path[i..];
+        assert path == left + right;
+        forall k | 0<= k < |left|-1 
+            ensures isParentOrChild(left[k], left[k+1])
+        {
+            assert k < |left|-1 < |path|;
+            assert left[k] in path && left[k+1] in path;
+            assert left[k] == path[k];
+            assert left[k+1] == path[k+1];
+            assert isParentOrChild(path[k], path[k+1]);
+        }
+        assert isTreePathAlt(left, start, path[i-1]);
+        TreePathsAreTheSame(left, start, path[i-1]);
+
+        forall k | 0<= k < |right|-1 
+            ensures isParentOrChild(right[k], right[k+1])
+        {
+        }
+        assert isTreePathAlt(right, path[i], end);
+    }
 
     lemma TreePathsAreTheSame(path: seq<Tree>, start: Tree, end: Tree)
         requires start != Nil
@@ -332,6 +413,22 @@ module BinaryTree {
         ensures isTreePath(path, start, end)
     {
 
+    }
+    
+    lemma TreePathsReverseAreTreePaths(path: seq<Tree>, start: Tree, end: Tree)
+        requires start != Nil
+        requires end != Nil
+        requires isTreePath(path, start, end)
+        ensures isTreePath(reverse(path), end, start)
+    {
+        TreePathsAreTheSameAlt(path, start, end);
+        ReverseIndexAll(path);
+        forall i | 0 <= i < |path| - 1
+            ensures isParentOrChild(reverse(path)[i], reverse(path)[i+1]) 
+        {
+
+        }
+        TreePathsAreTheSame(reverse(path), end, start);
     }
 
     lemma DescPathChildren(path: seq<Tree>, start: Tree, end: Tree)
@@ -398,6 +495,34 @@ module BinaryTree {
         ensures forall i :: 0 <= i < |path| - 1 ==> isChild(path[i+1], path[i])
     {
     }
+    
+    lemma AscTreePathSplitAlt(path: seq<Tree>, start: Tree, end: Tree) 
+        requires start != Nil
+        requires end != Nil
+        requires |path| > 1
+        requires isAscTreePathAlt(path, start, end)
+        ensures forall i :: 1 <= i < |path| ==> isAscTreePathAlt(path[..i], start, path[i-1])
+    {
+
+    }
+
+    lemma AscTreePathSplit(path: seq<Tree>, start: Tree, end: Tree) 
+        requires start != Nil
+        requires end != Nil
+        requires |path| > 1
+        requires isAscTreePath(path, start, end)
+        ensures forall i :: 1 <= i < |path| ==> isAscTreePath(path[..i], start, path[i-1])
+    {
+        AscTreePathAreTheSame(path, start, end);
+        AscTreePathSplitAlt(path, start, end);
+        AscTreePathNotNil(path, start, end);
+        forall i | 1 <= i < |path| 
+            ensures isAscTreePath(path[..i], start, path[i-1])
+        {
+            assert path[i-1] in path;
+            AscTreePathAreTheSameAlt(path[..i], start, path[i-1]);
+        }
+    }
 
 
     lemma TreeSetChildInTreeSet(root: Tree, child: Tree) 
@@ -441,7 +566,7 @@ module BinaryTree {
         ensures forall i :: 0 <= i < |path| - 1 ==> isValidPath(path[i..], path[i])
     {
         if |path| == 2 {
-
+            assert start in path && end in path;
         }else{
             validChildrenAlt(path[1..], path[1], end);
         }
@@ -736,6 +861,78 @@ module BinaryTree {
         }
     }
 
+    lemma TreePathStartingAtRootIsChildSeries(root: Tree, start: Tree, end: Tree, path: seq<Tree>) 
+        requires root != Nil && end != Nil
+        requires |path| > 1
+        requires isPath(path, root, end, root)
+        requires root in path && root == start;
+        ensures forall i :: 0 <= i < |path| - 1 ==> isChild(path[i], path[i+1])
+    {
+        TreePathNotNil(path, start, end);
+        assert [root] == path[..1];
+        TreePathsAreTheSameAlt(path, root, end);
+        forall k: nat | k < 1
+            ensures isChild(path[k], path[k+1])
+        {
+            assert isParentOrChild(path[k], path[k+1]);
+            if isChild(path[k+1], path[k]) {
+                parentNotInTreeSet(path[k+1], root);
+            }
+        }
+        DescPathAccumulatesParents(path,[root], 1, {root}, root, end);
+    }
+
+    lemma DescPathAccumulatesParents(path: seq<Tree>, pathSub: seq<Tree>,  i: nat, parentset: set<Tree>, root: Tree, end: Tree)
+        requires |path| >= 1
+        requires 1 <= i < |path|
+        requires isTreePath(path, root, end)
+        requires forall k:nat :: k < |path| ==> path[k] != Nil 
+        requires forall k: nat :: k < i ==> path[k] in parentset
+        requires forall k: nat :: k < i ==> isChild(path[k], path[k+1])
+        requires distinct(path)
+        requires pathSub == path[..i] && |pathSub| >= 1
+        requires isDescTreePath(pathSub, root, path[i-1])
+        requires i < |path|-1 ==> isParentOrChild(path[i], path[i+1])
+        requires root == path[0];
+        ensures i < |path|-1 ==> isChild(path[i], path[i+1])
+        ensures forall i :: 0 <= i < |path| - 1 ==> isChild(path[i], path[i+1])
+        decreases |path|-i
+    {
+        if i < |path|-1 {
+            TreePathsAreTheSameAlt(path, root, end);
+            if isChild(path[i+1], path[i]) {
+                assert isChild(path[i-1], path[i]);
+                parentsAreTheSame(path[i+1], path[i-1], path[i]);
+                assert false;
+            }else if isChild(path[i], path[i+1]) {
+                if |pathSub| == 1 {
+
+                }else{
+                DescPathChildren(pathSub, root, path[i-1]);
+                DescPathChildrenAlt(pathSub+[path[i]], root, path[i]);
+                }
+                assert isDescTreePath(pathSub+[path[i]], root, path[i]);
+                DescPathAccumulatesParents(path, pathSub+[path[i]], i+1, parentset+{path[i]}, root, end);
+            }
+        }
+    }
+
+    lemma TreePathStartingAtRootIsDesc(path: seq<Tree>, start: Tree, end: Tree, root: Tree) 
+        requires root != Nil && end != Nil
+        requires isPath(path, start, end, root)
+        requires root in path && root == start;
+        ensures isDescTreePath(path, start, end)
+    {
+        if |path| == 1 {
+        }else{
+            TreePathNotNil(path, start, end);
+            TreePathsAreTheSameAlt(path, start, end);
+            TreePathSplit(path, start, end);
+            TreePathStartingAtRootIsChildSeries(root, start, end, path);
+            DescPathChildrenAlt(path, start, end);
+        }
+    }
+
     lemma descRoot(root: Tree, start: Tree, end: Tree, path: seq<Tree>) 
         requires isDescTreePath(path, start, end)
         requires isValidPath(path, root)
@@ -892,4 +1089,32 @@ module BinaryTree {
         }
     }
 
+    lemma EndDeterminesPath(path: seq<Tree>, start: Tree, end: Tree)
+        requires |path| > 1
+        requires start != Nil && end != Nil
+        requires isDescTreePath(path, start, end)
+        requires isValidPath(path, start);
+        requires ChildrenAreSeparate(start)
+        ensures end in TreeSet(start.left) ==> path[1] == start.left
+        ensures end in TreeSet(start.right) ==> path[1] == start.right
+    {
+        isDescPathAndValidImpliesAllValid(path, start, end);
+    }
+
+    lemma ChildHeightBound(root: Tree, h: int) 
+        requires root != Nil && root.right != Nil
+        requires TreeHeight(root) == h
+        ensures TreeHeight(root.right) <= h-1
+        ensures TreeHeight(root.left) <= h-1
+    {
+
+    }
+
+    lemma RootBounded(root: Tree, h: int) 
+        requires root != Nil
+        requires TreeHeight(root) == h
+        ensures (TreeHeight(root.right) == h-1 && TreeHeight(root.left) <= h-1) || (TreeHeight(root.right) <= h-1 && TreeHeight(root.left) == h-1)
+    {
+
+    }
 }

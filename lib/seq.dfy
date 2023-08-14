@@ -1,6 +1,13 @@
 
 module Seq {
     export reveals *
+    function ToSet<A>(xs: seq<A>): set<A>
+        ensures forall x :: x in ToSet(xs) ==> x in xs
+        ensures forall x :: x !in ToSet(xs) ==> x !in xs
+    {
+        if xs == [] then {} else {xs[0]}+ToSet(xs[1..])
+    }
+
     predicate substring1<A(==)>(sub: seq<A>, super: seq<A>) {
         exists k :: 0 <= k < |super| && sub <= super[k..]
     }
@@ -76,14 +83,14 @@ module Seq {
         |xs| <= |ys| && xs == ys[..|xs|]
     }
 
-    lemma PrefixRest<T(==)>(xs: seq<T>, ys: seq<T>)
+    lemma PrefixRest<T>(xs: seq<T>, ys: seq<T>)
         requires IsPrefix(xs, ys)
         ensures exists yss: seq<T> :: ys == xs + yss && |yss| == |ys|-|xs|;
     {
         assert ys == ys[..|xs|] + ys[|xs|..];
     }
 
-    lemma IsSuffixReversed<T(==)>(xs: seq<T>, ys: seq<T>)
+    lemma IsSuffixReversed<T>(xs: seq<T>, ys: seq<T>)
         requires IsSuffix(xs, ys)
         ensures IsPrefix(reverse(xs), reverse(ys))
     {
@@ -91,7 +98,7 @@ module Seq {
         ReverseIndexAll(ys);
     }
 
-    lemma IsPrefixReversed<T(==)>(xs: seq<T>, ys: seq<T>)
+    lemma IsPrefixReversed<T>(xs: seq<T>, ys: seq<T>)
         requires IsPrefix(xs, ys)
         ensures IsSuffix(reverse(xs), reverse(ys))
     {
@@ -99,7 +106,7 @@ module Seq {
         ReverseIndexAll(ys);
     }
 
-    lemma IsPrefixReversedAll<T(==)>(xs: seq<T>, ys: seq<T>)
+    lemma IsPrefixReversedAll<T>(xs: seq<T>, ys: seq<T>)
         requires IsPrefix(reverse(xs), reverse(ys))
         ensures IsSuffix(reverse(reverse(xs)), reverse(reverse(ys)))
     {
@@ -303,6 +310,11 @@ module Seq {
     {
         ReverseIndexAll(list);
     }
+
+    lemma distinctSplits<A>(list: seq<A>)
+        requires distinct(list)
+        ensures forall i :: 1 <= i < |list| ==> distinct(list[..i])
+    {}
 
     lemma multisetItems<A>(list: seq<A>, item: A)
         requires item in list
