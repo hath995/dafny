@@ -123,44 +123,23 @@ lemma {:verify } isSymmetricHelperWorks(left: Tree, right: Tree)
     ensures isSymmetricHelper(left, right) ==> forall lnode :: validTree(lnode) && lnode in (TreeNodes(left)-{left}) ==> exists rnode :: validTree(rnode) && rnode in TreeNodes(right) && isSymmetricHelper(lnode, rnode)
 {
     if left == Nil && right == Nil {
-        assert forall lnode :: lnode in (TreeNodes(left)-{left}) ==> exists rnode :: rnode in TreeNodes(right) && isSymmetricHelper(lnode, rnode);
     } else if left != Nil && right != Nil {
-        // assert isSymmetricHelper(left.left, right.right);
-        // assert isSymmetricHelper(left.right, right.left);
-        // assert right.right in TreeNodes(right);
-        // assert right.left in TreeNodes(right);
         isSymmetricHelperWorks(left.left, right.right);
         isSymmetricHelperWorks(left.right, right.left);
         ValidChildrenMinusRootValid(left.left);
         ValidChildrenMinusRootValid(left.right);
-        // assert forall llnode :: validTree(llnode) && llnode in (TreeNodes(left.left)-{left.left}) ==>  exists rnode :: validTree(rnode) && rnode in TreeNodes(right.right) && isSymmetricHelper(llnode, rnode);
-        // assert forall lrnode :: validTree(lrnode) && lrnode in (TreeNodes(left.right)-{left.right}) ==> exists rnode :: validTree(rnode) && rnode in TreeNodes(right.left) && isSymmetricHelper(lrnode, rnode);
-        // if isLeaf(left) {
-        // }else{
-            forall lnode | lnode in (TreeNodes(left)-{left}) 
+        forall lnode | lnode in (TreeNodes(left)-{left}) 
             ensures exists rnode :: validTree(rnode) && rnode in TreeNodes(right) && isSymmetricHelper(lnode, rnode)
-            {
-                // assume exists rnode :: rnode in TreeNodes(right) && isSymmetricHelper(lnode, rnode);
-                // assert (TreeNodes(left)-{left}) <= TreeNodes(left);
-                // assert lnode in TreeNodes(left);
-                ValidTreeChildIsValid(left,lnode);
-                // assert validTree(right.right);
-                // assert validTree(right.left);
-                if lnode in TreeNodes(left.left) {
-                    var rnode :| validTree(rnode) && rnode in TreeNodes(right.right) && isSymmetricHelper(lnode, rnode);
-                    // assert validTree(rnode);
-                    // ValidTreeChildIsValid(right.right, rnode);
-                } else if lnode in TreeNodes(left.right) {
-                    var rnode :| validTree(rnode) &&rnode in TreeNodes(right.left) && isSymmetricHelper(lnode, rnode);
-                    // assert validTree(rnode);
-                    // ValidTreeChildIsValid(right.right, rnode);
-                    // ValidTreeChildIsValid(right.left, rnode);
-                } else {
-                    assert false;
-                }
-                
+        {
+            ValidTreeChildIsValid(left,lnode);
+            if lnode in TreeNodes(left.left) {
+                var rnode :| validTree(rnode) && rnode in TreeNodes(right.right) && isSymmetricHelper(lnode, rnode);
+            } else if lnode in TreeNodes(left.right) {
+                var rnode :| validTree(rnode) &&rnode in TreeNodes(right.left) && isSymmetricHelper(lnode, rnode);
+            } else {
+                assert false;
             }
-        // }
+        }
     }else{
         assert false;
     }

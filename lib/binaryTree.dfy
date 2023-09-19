@@ -441,7 +441,9 @@ module BinaryTree {
         ensures forall i :: 0 <= i < |path| - 1 ==> isValidPath(path[i..], path[i])
     {
         if |path| == 2 {
-
+            assert isValidPath(path[0..], path[0]);
+            assert isValidPath(path[1..], path[1]);
+            assert forall i :: 0 <= i < |path| - 1 ==> isValidPath(path[i..], path[i]);
         }else{
             validChildrenAlt(path[1..], path[1], end);
         }
