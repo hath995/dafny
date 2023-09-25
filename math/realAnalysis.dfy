@@ -344,3 +344,289 @@ lemma exercise1_30(A: iset<real>, B: iset<real>, abound: real, bbound: real)
     // assert epsilon > 0.0;
     assert !upperBound(B, sub(bbound, epsilon));
 }
+
+function abs(a: real): real {
+    if a >= 0.0 then a else -a
+}
+
+predicate positiveNat(x: nat) {
+    x > 0
+}
+
+predicate positiveReal(x: real) {
+    x > 0.0
+}
+
+ghost predicate Limit(a_i: pos -> real, a: real) {
+    forall epsilon: real :: positiveReal(epsilon) ==> exists N: nat :: positiveNat(N) && forall n: pos :: n > N ==> converges(a_i, n, epsilon, a)
+}
+
+function oneOverN(n: pos): real {
+    1.0 / n as real
+}
+
+predicate converges(a_i: pos -> real, n: pos, epsilon: real, a: real) {
+    abs(a_i(n)-a) < epsilon
+}
+
+predicate CauchyCriterion(a_i: pos -> real, epsilon: real, m: pos, n: pos) {
+    abs(a_i(m)-a_i(n)) < epsilon
+}
+
+ghost predicate isCauchy(a_i: pos -> real) {
+    forall epsilon: real :: positiveReal(epsilon) ==> exists N: nat :: positiveNat(N) && forall n: pos,m:pos :: m > n > N ==> CauchyCriterion(a_i, epsilon, m, n)
+}
+
+lemma helper(x: real, y: real, z: real)
+    requires x >0.0 && y > 0.0 && z> 0.0
+    requires x * y > z * y
+    ensures x > z
+{
+
+}
+
+lemma helper2(x: real, y: real, z: real)
+    requires x >0.0 && y > 0.0 && z> 0.0
+    requires x > z
+    ensures x * y > z * y
+{
+
+}
+
+lemma biggerDenominator(bigger: nat, smaller: nat)
+    requires 0 < smaller < bigger
+    ensures (1.0 / smaller as real) > (1.0 / bigger as real)
+{
+    var delta: pos := bigger - smaller;
+    helper((1.0 / smaller as real), ((smaller+delta) as real), (1.0 / (smaller + delta) as real));
+}
+
+lemma biggerDenominatorReal(bigger: real, smaller: real)
+    requires 0.0 < smaller < bigger
+    ensures (1.0 / smaller) > (1.0 / bigger)
+{
+
+    var delta := bigger - smaller;
+    helper((1.0 / smaller as real), ((smaller+delta) as real), (1.0 / (smaller + delta) as real));
+}
+// calc {
+//     (1.0 / smaller as real)*((smaller+delta) as real) > (1.0 / (smaller + delta) as real) * ((smaller+delta) as real);
+//     {helper((1.0 / smaller as real), ((smaller+delta) as real), (1.0 / (smaller + delta) as real));}
+//     (1.0 / smaller as real) > 1.0 / (smaller + delta) as real;
+
+// }
+// ((smaller+delta) as real/smaller as real) > 1.0 as real;
+// ((smaller+delta) as real/smaller as real) > (1.0 / (smaller + delta) as real) *((smaller+delta) as real);
+// assert a - delta == bigger;
+// assert a == bigger + delta;
+// calc {
+//     1.0 / a as real;
+//     1.0 / (bigger + delta) as real;
+// }
+
+lemma helper3(a: real, b: real)
+    requires 0.0 < a < b 
+    ensures 1.0 / a > 1.0 / b
+{
+    var delta: real := b - a;
+}
+
+lemma oneOverNLessThanEpsilon(epsilon: real, N: nat) 
+    requires epsilon > 0.0
+    requires N == (1.0 / epsilon).Floor + 1
+    ensures 1.0 / N as real < epsilon
+{
+    if epsilon > 1.0 {
+
+    }else if epsilon == 1.0 {
+        
+    }else if epsilon < 1.0 {
+        helper3(1.0/epsilon, N as real);
+        // assert 1.0 / N as real < 1.0/(1.0/epsilon);
+        assert 1.0/(1.0/epsilon) == epsilon;
+        // assert 1.0 / N as real < epsilon;
+    }
+}
+
+
+
+lemma {:verify } exercise3_9() 
+    ensures Limit(oneOverN, 0.0)
+{
+    forall epsilon: real | positiveReal(epsilon)
+        ensures exists N: nat :: positiveNat(N) && forall n: pos :: n > N ==> converges(oneOverN, n, epsilon, 0.0)
+    {
+        var N: nat := (1.0 / epsilon).Floor + 1;
+        assert positiveNat(N);
+        forall n: pos | n > N
+            ensures converges(oneOverN, n, epsilon, 0.0)
+        {
+            biggerDenominator(n,N);
+            oneOverNLessThanEpsilon(epsilon, N);
+            assert 1.0 / N as real < epsilon;
+            assert abs(oneOverN(n)-0.0) < epsilon; //figured out that 1.0/n < 1.0/ N < epsilon
+            //figured out that f(n) < f(N) < epsilon
+        }
+    }
+}
+
+
+lemma multiplyByXoverX(a: real, b: real, x: real)
+    requires x != 0.0 && b != 0.0
+    ensures a/b == prod(a,x)/prod(b,x)
+{
+
+}
+
+lemma subtractLikeBase(denominator: real, x: real, y: real)
+    requires denominator != 0.0
+    ensures x/denominator-y/denominator == (x-y)/denominator
+{
+
+}
+
+
+function TwoNminusTwoOverFiveNPlusOne(n: pos): real {
+    (2.0*(n as real)-2.0)/(5.0*(n as real)+1.0)
+}
+
+lemma TwoNminusTwoOverFiveNPlusOneN(n: pos, N: pos, epsilon: real)
+    requires epsilon > 0.0
+    requires n > N
+    requires N == ((12.0/epsilon-5.0)/25.0).Floor+1
+    ensures 12.0/(25.0*(n as real)+5.0) < 12.0/(25.0*(N as real)+5.0)
+{}
+
+lemma {:verify } exercise3_4b() 
+    ensures Limit(TwoNminusTwoOverFiveNPlusOne, 2.0/5.0);
+{
+
+    forall epsilon: real | positiveReal(epsilon)
+        ensures exists N: nat :: positiveNat(N) && forall n: pos :: n > N ==> converges(TwoNminusTwoOverFiveNPlusOne, n, epsilon, 2.0/5.0)
+    {
+
+/*
+        12.0/(25.0*(n as real)+5.0) < 12.0/(25.0*(N as real)+5.0) = epsilon;
+        12.0/(25.0*(N as real)+5.0) = epsilon;
+        12.0/epsilon-5.0 = 25.0*(N as real)
+        (12.0/epsilon-5.0)/25.0 = (N as real)
+*/
+        if epsilon >= 1.0 {
+            assert positiveNat(1);
+            forall n: nat | n >1 
+                ensures  12.0/(25.0*(n as real)+5.0) < epsilon
+            {
+calc {
+                    abs(TwoNminusTwoOverFiveNPlusOne(n)-(2.0/5.0)) ;
+                    abs((2.0*(n as real)-2.0)/(5.0*(n as real)+1.0)-(2.0/5.0)) ;
+                    // {multiplyByXoverX(2.0, 5.0, (5.0*(n as real)+1.0));}
+                    abs((2.0*(n as real)-2.0)/(5.0*(n as real)+1.0)-prod(2.0,(5.0*(n as real)+1.0))/prod(5.0,(5.0*(n as real)+1.0))) ;
+                    abs((2.0*(n as real)-2.0)/(5.0*(n as real)+1.0)-(2.0*(5.0*(n as real)+1.0))/(5.0*(5.0*(n as real)+1.0))) ;
+                    {multiplyByXoverX(2.0*(n as real)-2.0, 5.0*(n as real)+1.0, 5.0);}
+                    abs((5.0*(2.0*(n as real)-2.0))/(5.0*(5.0*(n as real)+1.0))-(2.0*(5.0*(n as real)+1.0))/(5.0*(5.0*(n as real)+1.0))) ;
+                    abs((10.0*(n as real)-10.0)/(5.0*(5.0*(n as real)+1.0))-((10.0*(n as real)+2.0))/(5.0*(5.0*(n as real)+1.0))) ;
+                    abs((10.0*(n as real)-10.0)/(25.0*(n as real)+5.0)-(10.0*(n as real)+2.0)/(25.0*(n as real)+5.0)) ;
+                    {subtractLikeBase(25.0*(n as real)+5.0, 10.0*(n as real)-10.0, 10.0*(n as real)+2.0);}
+                    abs((10.0*(n as real)-10.0-(10.0*(n as real)+2.0))/(25.0*(n as real)+5.0)) ;
+                    abs((10.0*(n as real)-10.0-10.0*(n as real)-2.0)/(25.0*(n as real)+5.0)) ;
+                    abs((10.0*(n as real)-10.0*(n as real)-12.0)/(25.0*(n as real)+5.0)) ;
+                    abs(-12.0/(25.0*(n as real)+5.0)) ;
+                    {assert forall n : pos :: -12.0/(25.0*(n as real)+5.0) < 0.0;}
+                    -(-12.0/(25.0*(n as real)+5.0)) ;
+                    {assert forall x: real :: --x == x; assert -(-12.0/(25.0*(n as real)+5.0)) == 12.0/(25.0*(n as real)+5.0);}
+                    12.0/(25.0*(n as real)+5.0) ;
+                }
+                assert converges(TwoNminusTwoOverFiveNPlusOne, n, epsilon, 2.0/5.0);
+            }
+        }else{
+            var N: nat := ((12.0/epsilon-5.0)/25.0).Floor+1;
+            assert positiveNat(N);
+
+            forall n: pos | n > N
+                ensures converges(TwoNminusTwoOverFiveNPlusOne, n, epsilon, 2.0/5.0)
+            {
+                calc {
+                    abs(TwoNminusTwoOverFiveNPlusOne(n)-(2.0/5.0)) ;
+                    abs((2.0*(n as real)-2.0)/(5.0*(n as real)+1.0)-(2.0/5.0)) ;
+                    // {multiplyByXoverX(2.0, 5.0, (5.0*(n as real)+1.0));}
+                    abs((2.0*(n as real)-2.0)/(5.0*(n as real)+1.0)-prod(2.0,(5.0*(n as real)+1.0))/prod(5.0,(5.0*(n as real)+1.0))) ;
+                    abs((2.0*(n as real)-2.0)/(5.0*(n as real)+1.0)-(2.0*(5.0*(n as real)+1.0))/(5.0*(5.0*(n as real)+1.0))) ;
+                    {multiplyByXoverX(2.0*(n as real)-2.0, 5.0*(n as real)+1.0, 5.0);}
+                    abs((5.0*(2.0*(n as real)-2.0))/(5.0*(5.0*(n as real)+1.0))-(2.0*(5.0*(n as real)+1.0))/(5.0*(5.0*(n as real)+1.0))) ;
+                    abs((10.0*(n as real)-10.0)/(5.0*(5.0*(n as real)+1.0))-((10.0*(n as real)+2.0))/(5.0*(5.0*(n as real)+1.0))) ;
+                    abs((10.0*(n as real)-10.0)/(25.0*(n as real)+5.0)-(10.0*(n as real)+2.0)/(25.0*(n as real)+5.0)) ;
+                    {subtractLikeBase(25.0*(n as real)+5.0, 10.0*(n as real)-10.0, 10.0*(n as real)+2.0);}
+                    abs((10.0*(n as real)-10.0-(10.0*(n as real)+2.0))/(25.0*(n as real)+5.0)) ;
+                    abs((10.0*(n as real)-10.0-10.0*(n as real)-2.0)/(25.0*(n as real)+5.0)) ;
+                    abs((10.0*(n as real)-10.0*(n as real)-12.0)/(25.0*(n as real)+5.0)) ;
+                    abs(-12.0/(25.0*(n as real)+5.0)) ;
+                    {assert forall n : pos :: -12.0/(25.0*(n as real)+5.0) < 0.0;}
+                    -(-12.0/(25.0*(n as real)+5.0)) ;
+                    12.0/(25.0*(n as real)+5.0) ;
+                }
+
+                TwoNminusTwoOverFiveNPlusOneN(n, N, epsilon);
+                assert 12.0/(25.0*(N as real)+5.0) < epsilon by {
+                    var niceN := ((12.0/epsilon-5.0)/25.0);
+                    var result := 12.0/(25.0*(N as real)+5.0);
+                    assert (((12.0/epsilon-5.0)/25.0).Floor+1 ) as real > niceN;
+                    assert N == (((12.0/epsilon-5.0)/25.0).Floor+1 );
+                    calc {
+                        12.0/(25.0*(((12.0/epsilon-5.0)/25.0))+5.0);
+                        12.0/(25.0*((12.0/epsilon-5.0)/25.0)+5.0);
+                        12.0/(12.0/epsilon-5.0+5.0);
+                        12.0/(12.0/epsilon);
+                        epsilon;
+
+                    }
+                    
+                    assert  (25.0*(N as real)+5.0) > (25.0*niceN+5.0);
+                    biggerDenominatorReal((25.0*(N as real)+5.0), 25.0*niceN+5.0);
+                    assert 1.0/(25.0*(N as real)+5.0) < 1.0/(25.0*(niceN)+5.0);
+                    assert (1.0/(25.0*(N as real)+5.0) )*12.0 == result;
+                    assert (1.0/(25.0*(N as real)+5.0) )*12.0 < 1.0/(25.0*(niceN)+5.0)* 12.0;
+                    assert 12.0/(25.0*(((12.0/epsilon-5.0)/25.0))+5.0) == 1.0/(25.0*(niceN)+5.0)* 12.0;
+                    assert result < 1.0/(25.0*(niceN)+5.0)* 12.0;
+                }
+                assert converges(TwoNminusTwoOverFiveNPlusOne, n, epsilon, 2.0/5.0);
+            }
+        }
+    }
+}
+
+// calc ==> {
+//     n > N;
+//     n / n > N/n;
+//     1.0 > N as real / n as real;
+//     {assert (N as real / n as real) / N as real == 1.0 / n as real;}
+//     {biggerDenominator(n,N);}
+//    ( (1.0) / N as real) > 1.0 / n as real;
+// }
+// assert (1.0 / n as real) < (1.0 / N as real);
+// calc ==> {
+//     abs(oneOverN(n)-0.0) < epsilon;
+//     abs(oneOverN(n)) < epsilon;
+//     oneOverN(n) < epsilon;
+// }
+// assert oneOverN(n) < epsilon;
+// calc{
+//     abs(oneOverN(n)-0.0);
+//     abs(oneOverN(n));
+//     oneOverN(n);
+//     1.0/n as real;
+// }
+// calc {
+//     1.0 / N as real;
+//     1.0 / ((1.0 / epsilon).Floor + 1) as real;
+// }
+// calc{ 
+//     ((1.0 / epsilon).Floor + 1) as real* 1.0 / ((1.0 / epsilon).Floor + 1) as real;
+//     1.0;
+// }
+// calc ==> {
+//     1.0 / N as real < epsilon;
+//     1.0 / ((1.0 / epsilon).Floor + 1) as real < epsilon;
+//     {helper2(epsilon, ((1.0 / epsilon).Floor + 1) as real, 1.0 /((1.0 / epsilon).Floor + 1) as real);}
+//     ((1.0 / epsilon).Floor + 1) as real* 1.0 / ((1.0 / epsilon).Floor + 1) as real < ((1.0 / epsilon).Floor + 1) as real * epsilon;
+//     1.0 < ((1.0 / epsilon).Floor + 1) as real * epsilon;
+// }
