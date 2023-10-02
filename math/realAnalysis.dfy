@@ -594,6 +594,223 @@ calc {
     }
 }
 
+ghost function setOfNegatives(a_i: pos -> real): iset<real> {
+    iset n | a_i(n) < 0.0 :: a_i(n)
+}
+
+lemma exercise3_1(a_i: pos -> real)
+    requires Limit(a_i, 0.001)
+    // ensures exists n: nat :: |setOfNegatives(a_i)| <= n
+{
+    if forall n: pos :: true ==> a_i(n) >= 0.0 {
+        // assume !Limit(a_i, 0.001);
+    }
+    // if !Limit(a_i, 0.001) {
+
+        // assert !(forall epsilon: real :: positiveReal(epsilon) ==> exists N: nat :: positiveNat(N) && forall n: pos :: n > N ==> converges(a_i, n, epsilon, 0.001));
+        // assert exists epsilon: real :: positiveReal(epsilon) && forall N: nat :: positiveNat(N) ==> exists n: pos :: n > N &&  !(converges(a_i, n, epsilon, 0.001));
+    //     assume forall n: pos :: true ==> a_i(n) >= 0.0;
+    // }
+}
+
+lemma exercise3_1b(a_i: pos -> real, N: nat)
+    requires Limit(a_i, 0.001)
+    requires positiveNat(N) && forall n :: n > N ==> converges(a_i, n, 0.001, 0.001);
+    ensures forall n:: n > N ==> a_i(n) >= 0.0
+{
+    forall n | n > N 
+        ensures a_i(n) >= 0.0
+    {
+        assert converges(a_i, n, 0.001, 0.001);
+    }
+
+}
+
+method exercise3_1m(a_i: pos -> real) returns (ghost negatives: set<nat>)
+    requires Limit(a_i, 0.001)
+    ensures forall x :: x in negatives ==> a_i(x) < 0.0;
+    ensures exists N: nat :: positiveNat(N) && |negatives| <= N
+{
+    var epsilon: real := 0.001;
+    assert positiveReal(epsilon);
+    ghost var N: nat :| positiveNat(N) && forall n :: n > N ==> converges(a_i, n, epsilon, 0.001);
+    ghost var i: nat := 1;
+    negatives := {};
+    while i < N
+        invariant 0 <= i <= N
+        invariant forall x :: x in negatives ==> a_i(x) < 0.0;
+        invariant |negatives| <= i
+    {
+        if a_i(i) < 0.0 {
+            negatives := {i} + negatives;
+        }
+        i := i + 1;
+    }
+    assert i <= N;
+    assert |negatives| <= N;
+
+}
+
+function addSequence(a_i: pos -> real, b_i: pos -> real): pos -> real {
+    (n:pos) => a_i(n) + b_i(n)
+}
+
+function mulSequence(a_i: pos -> real, c: real): pos -> real {
+    (n:pos) => prod(c, a_i(n))
+}
+
+lemma TriangeInequality(a: real, b: real)
+    ensures abs(a+b) <= abs(a) + abs(b)
+{
+}
+
+function maxNat(a: nat, b: nat): nat {
+    if a >= b then a else b
+}
+
+lemma exercise3_8(a_i: pos -> real, b_i: pos -> real, a: real, b: real)
+    requires Limit(a_i, a)
+    requires Limit(b_i, b)
+    ensures Limit(addSequence(a_i, b_i), a+b)
+{
+
+    forall epsilon: real | positiveReal(epsilon)
+        ensures exists N: nat :: positiveNat(N) && forall n: pos :: n > N ==> converges(addSequence(a_i, b_i), n, epsilon, a+b)
+    {
+        var epsilonOver2 := epsilon / 2.0;
+        assert positiveReal(epsilonOver2);
+        var N: nat :|  positiveNat(N) && forall n: pos :: n > N ==> converges(a_i, n, epsilonOver2, a);
+        var M: nat :|  positiveNat(M) && forall n: pos :: n > M ==> converges(b_i, n, epsilonOver2, b);
+        var Q := maxNat(N,M);
+        assert positiveNat(Q);
+        assert forall n: pos :: n > Q ==> converges(a_i, n, epsilonOver2, a);
+        assert forall n: pos :: n > Q ==> converges(b_i, n, epsilonOver2, b);
+        forall n: pos | n > Q 
+            ensures converges(addSequence(a_i, b_i), n, epsilon, a+b)
+        {
+            calc {
+                abs(addSequence(a_i, b_i)(n)-(a+b));
+                abs(a_i(n) + b_i(n)-(a+b));
+                abs(a_i(n) + b_i(n)-a-b);
+                abs(a_i(n) -a + b_i(n)-b);
+            }
+            assert converges(a_i, n, epsilonOver2, a);
+            assert converges(b_i, n, epsilonOver2, b);
+            assert abs(a_i(n) -a) < epsilonOver2;
+            assert abs(b_i(n)-b) < epsilonOver2;
+            assert abs(a_i(n) -a + b_i(n)-b) <= abs(a_i(n) -a) + abs(b_i(n)-b);
+        }
+    }
+}
+
+lemma inequalitProduct(a: real, b: real, c: real)
+    requires a < b
+    requires c > 0.0
+    ensures c*a < c*b
+{
+
+}
+
+lemma inequalitProductNeg(a: real, b: real, c: real)
+    requires a < b
+    requires c < 0.0
+    ensures c*a > c*b
+{
+
+}
+
+lemma absThings(a: real, c: real)
+    requires c > 0.0
+    ensures c * abs(a) == abs(c*a)
+{
+}
+
+lemma exercise3_8b(a_i: pos -> real, a: real, c: real)
+    requires Limit(a_i, a)
+    ensures Limit(mulSequence(a_i, c), prod(c, a))
+{
+    forall epsilon: real | positiveReal(epsilon)
+        ensures exists N: nat :: positiveNat(N) && forall n: pos :: n > N ==> converges(mulSequence(a_i, c), n, epsilon, prod(c, a))
+    {
+        if c > 0.0 {
+            var epsilonOverC := epsilon/c;
+            assert positiveReal(epsilonOverC);
+            var N: nat :|  positiveNat(N) && forall n: pos :: n > N ==> converges(a_i, n, epsilon/c, a);
+            forall n: pos | n > N 
+                ensures converges(mulSequence(a_i, c), n, epsilon, prod(c, a))
+            {
+                assert converges(a_i, n, epsilonOverC, a);
+                // calc {
+                //     abs(mulSequence(a_i, c)(n)-prod(c,a));
+                //     abs(prod(c,a_i(n))-prod(c,a));
+                //     abs(c*a_i(n)-c*a);
+                //     abs(c*(a_i(n)-a));
+                // }
+                var dist := abs(a_i(n)-a);
+                assert 0.0 <= dist < epsilonOverC;
+                inequalitProduct(dist, epsilonOverC, c);
+                assert c*0.0 <= c * dist < c * epsilonOverC;
+                assert c * epsilon/c == epsilon;
+                assert epsilonOverC == epsilon/c;
+                // assert c * epsilonOverC == epsilon;
+                // assert c*0.0 <= c * dist < epsilon;
+                // assert 0.0 < c*epsilon;
+                // assert c * abs(a_i(n)-a) < c*epsilon;
+                var diff := a_i(n)-a;
+                // absThings(diff,c);
+                // assert c *dist == abs(c*diff);
+                // assert c * abs(diff) == abs(c*diff); 
+                // assert abs(c*diff) == abs(c*(a_i(n)-a));
+                // assert abs(c*(a_i(n)-a)) < epsilon; 
+                // assert abs(mulSequence(a_i, c)(n)-prod(c,a)) == abs(c*(a_i(n)-a));
+                assert abs(mulSequence(a_i, c)(n)-prod(c,a)) < epsilon;
+                assert converges(mulSequence(a_i, c), n, epsilon, prod(c, a));
+            }
+        }else if c == 0.0 {
+            var N: nat :|  positiveNat(N) && forall n: pos :: n > N ==> converges(a_i, n, epsilon, a);
+            forall n: pos | n > N 
+                ensures converges(mulSequence(a_i, c), n, epsilon, prod(c, a))
+            {
+            }
+        }else {
+            var epsilonOverC := -epsilon/c;
+            assert positiveReal(epsilonOverC);
+            var N: nat :|  positiveNat(N) && forall n: pos :: n > N ==> converges(a_i, n, epsilonOverC, a);
+            forall n: pos | n > N 
+                ensures converges(mulSequence(a_i, c), n, epsilon, prod(c, a))
+            {
+
+                assert converges(a_i, n, epsilonOverC, a);
+                // calc {
+                //     abs(mulSequence(a_i, c)(n)-prod(c,a));
+                //     abs(prod(c,a_i(n))-prod(c,a));
+                //     abs(c*a_i(n)-c*a);
+                //     abs(c*(a_i(n)-a));
+                // }
+                var dist := abs(a_i(n)-a);
+                assert 0.0 <= dist < epsilonOverC;
+                // inequalitProduct(dist, epsilonOverC, c);
+                assert c*0.0 <= -c * dist < -c * epsilonOverC;
+                // assert c * epsilon/c == epsilon;
+                // assert epsilonOverC == -epsilon/c;
+                assert -c * epsilonOverC == epsilon;
+                assert -c*0.0 <= -c * dist < epsilon;
+                // assert 0.0 < -c*epsilon;
+                // assert c * abs(a_i(n)-a) < c*epsilon;
+                var diff := a_i(n)-a;
+                // absThings(diff,-c);
+                // assert -c *dist == abs(c*diff);
+                // assert -c * abs(diff) == abs(c*diff); 
+                assert abs(c*diff) == abs(-c*(a_i(n)-a));
+                // assert abs(c*(a_i(n)-a)) < epsilon; 
+                assert abs(mulSequence(a_i, c)(n)-prod(c,a)) == abs(c*(a_i(n)-a));
+                // assert abs(mulSequence(a_i, c)(n)-prod(c,a)) < epsilon;
+                // assert converges(mulSequence(a_i, c), n, epsilon, prod(c, a));
+            }
+        }
+    }
+}
+
 // calc ==> {
 //     n > N;
 //     n / n > N/n;
