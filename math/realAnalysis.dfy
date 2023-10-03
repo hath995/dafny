@@ -655,6 +655,14 @@ function addSequence(a_i: pos -> real, b_i: pos -> real): pos -> real {
     (n:pos) => a_i(n) + b_i(n)
 }
 
+function prodSequence(a_i: pos -> real, b_i: pos -> real): pos -> real {
+    (n:pos) => prod(a_i(n) , b_i(n))
+}
+
+function subSequence(a_i: pos -> real, b_i: pos -> real): pos -> real {
+    (n:pos) => a_i(n) - b_i(n)
+}
+
 function mulSequence(a_i: pos -> real, c: real): pos -> real {
     (n:pos) => prod(c, a_i(n))
 }
@@ -665,6 +673,10 @@ lemma TriangeInequality(a: real, b: real)
 }
 
 function maxNat(a: nat, b: nat): nat {
+    if a >= b then a else b
+}
+
+function maxReal(a: real, b: real): real {
     if a >= b then a else b
 }
 
@@ -811,6 +823,139 @@ lemma exercise3_8b(a_i: pos -> real, a: real, c: real)
     }
 }
 
+lemma {:verify false} exercise3_13(a_i: pos -> real, b_i: pos -> real, a: real, b: real)
+    requires Limit(a_i, a)
+    requires Limit(b_i, b)
+    ensures Limit(subSequence(a_i, b_i), a-b)
+{
+    // exercise3_8(a_i, b_i, a, b);
+}
+
+ghost predicate bounded(ss: iset<real>, L: real, U: real) {
+    forall x :: x in ss ==> L <= x <= U
+}
+
+ghost predicate boundedSeq(a_i: pos -> real, L: real, U: real) {
+    forall n:pos :: positiveNat(n) ==> L <= a_i(n) <= U
+}
+
+lemma boundedEqual(a_i: pos -> real, a_range: iset<real>, L: real, U: real)
+    requires a_range == iset n: pos | positiveNat(n) :: a_i(n)
+    requires bounded(a_range, L, U)
+    ensures boundedSeq(a_i, L, U)
+{
+    forall n:pos | positiveNat(n)
+        ensures L <= a_i(n) <= U
+    {
+        assert a_i(n) in a_range;
+    }
+
+}
+
+lemma boundedEqualLeft(a_i: pos -> real, a_range: iset<real>, L: real, U: real)
+    requires a_range == iset n: pos | positiveNat(n) :: a_i(n)
+    requires boundedSeq(a_i, L, U)
+    ensures bounded(a_range, L, U)
+{
+}
+
+lemma absProd(a: real, b: real)
+    ensures abs(prod(a,b)) == prod(abs(a), abs(b))
+{
+
+}
+
+lemma div(a: real, b: real)
+    requires a >= 0.0
+    requires b > a
+    ensures a/(b) < 1.0
+{
+    var diff := b-a;
+    assert a/(a+diff) < 1.0;
+}
+
+lemma divCommute(a: real, b: real, c: real)
+    requires c != 0.0
+    ensures a * (b/c) == (a/c)*b
+{
+}
+
+lemma smallerX(a: real, b : real)
+    requires a > 0.0
+    requires 0.0 <= b < 1.0
+    ensures b*a < a 
+{
+
+}
+
+lemma exercise3_18a(a_i: pos -> real, b_i: pos -> real, a_range: iset<real>, al: real, au: real)
+    requires Limit(b_i, 0.0)
+    requires a_range == iset n: pos | positiveNat(n) :: a_i(n)
+    requires al <= au
+    requires bounded(a_range, al, au) && boundedSeq(a_i, al, au)
+    ensures Limit(prodSequence(a_i, b_i), 0.0)
+{
+    assert al <= au;
+    forall epsilon: real | positiveReal(epsilon)
+        ensures exists N: nat :: positiveNat(N) && forall n: pos :: n > N ==> converges(prodSequence(a_i, b_i), n, epsilon, 0.0)
+    {
+        var max := maxReal(abs(al), abs(au))+1.0;
+        var epsilonOverMax := epsilon / max;
+        assert positiveReal(epsilonOverMax);
+        var N: nat :|  positiveNat(N) && forall n: pos :: n > N ==> converges(b_i, n, epsilonOverMax, 0.0);
+        if epsilon < 1.0 {
+            forall n: pos | n > N 
+                ensures converges(prodSequence(a_i, b_i), n, epsilon,  0.0)
+            {
+                assert converges(b_i, n, epsilonOverMax, 0.0);
+                calc {
+                abs(prodSequence(a_i, b_i)(n)-0.0); 
+                abs(prodSequence(a_i, b_i)(n)); 
+                abs(prod(a_i(n), b_i(n))); 
+                }
+                absProd(a_i(n), b_i(n));
+                assert prod(abs(a_i(n)) , abs(b_i(n))) == abs(prod(a_i(n), b_i(n)));
+                assert b_i(n) < epsilonOverMax;
+                assert abs(b_i(n)) < epsilonOverMax;
+                assert abs(a_i(n)) * epsilonOverMax < epsilon by {
+                    assert al <= a_i(n) <= au;
+                    var an := abs(a_i(n));
+                    var bx:=abs(a_i(n))/max; 
+                    calc {
+                        abs(a_i(n)) * epsilon / max;
+                        an * epsilon / max;
+                        {divCommute(an, epsilon, max);}
+                        (an / max) * epsilon;
+                        (abs(a_i(n)) / max) * epsilon;
+                        (bx) * epsilon;
+                    }
+                    if abs(al) >= abs(au) {
+                        assert abs(a_i(n)) <= abs(al) < max;
+                        div(abs(a_i(n)), max);
+                        assert abs(a_i(n))/max < 1.0;
+                        smallerX(epsilon, bx);
+                        assert (bx) * epsilon < epsilon;
+                        assert (abs(a_i(n)) / max) * epsilon < epsilon;
+                        assert (bx) * epsilon == abs(a_i(n)) * epsilon / max;
+                        assert abs(a_i(n)) * epsilon / max < epsilon;
+                    }else{
+                        assert abs(a_i(n)) <= abs(au) < max;
+                        div(abs(a_i(n)), max);
+                        assert abs(a_i(n))/max < 1.0;
+                        assert 0.0 <= bx < 1.0;
+                        smallerX(epsilon, bx);
+                        assert (bx) * epsilon < epsilon;
+                        assert (bx) * epsilon == abs(a_i(n)) * epsilon / max;
+                        assert abs(a_i(n)) * epsilon / max < epsilon;
+                    }
+
+                }
+            }
+        }else{
+            assert false;
+        }
+    }
+}
 // calc ==> {
 //     n > N;
 //     n / n > N/n;
