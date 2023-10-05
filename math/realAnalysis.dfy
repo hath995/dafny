@@ -8,13 +8,13 @@ ghost predicate Injective<A(!new), B>(f: A -> B)
     forall x, y :: x != y ==> f(x) != f(y)
 }
 ghost predicate isTotal<G(!new), B(!new)>(f:G -> B)
-    reads f.reads;
+    reads f.reads
 {
      forall g:G :: f.requires(g)
 }
 
 ghost predicate Surjective<A(!new), B(!new)>(f: A -> B) 
-    reads f.reads;
+    reads f.reads
     // requires isTotal(f)
 {
     forall b: B :: exists a: A :: f(a) == b 
@@ -156,7 +156,7 @@ predicate lessThanEqual(n: nat, x: real) {
 }
 
 lemma stillInt(x: real) 
-    requires x.Floor as real == x;
+    requires x.Floor as real == x
     ensures sub(x, 1.0).Floor as real == sub(x, 1.0)
 {
     var m: int := x.Floor;
@@ -164,7 +164,7 @@ lemma stillInt(x: real)
 }
 
 lemma stillIntPlus(x: real) 
-    requires x.Floor as real == x;
+    requires x.Floor as real == x
     ensures add(x, 1.0).Floor as real == add(x, 1.0)
 {
     var m: int := x.Floor;
@@ -615,7 +615,7 @@ lemma exercise3_1(a_i: pos -> real)
 
 lemma exercise3_1b(a_i: pos -> real, N: nat)
     requires Limit(a_i, 0.001)
-    requires positiveNat(N) && forall n :: n > N ==> converges(a_i, n, 0.001, 0.001);
+    requires positiveNat(N) && forall n :: n > N ==> converges(a_i, n, 0.001, 0.001)
     ensures forall n:: n > N ==> a_i(n) >= 0.0
 {
     forall n | n > N 
@@ -628,7 +628,7 @@ lemma exercise3_1b(a_i: pos -> real, N: nat)
 
 method exercise3_1m(a_i: pos -> real) returns (ghost negatives: set<nat>)
     requires Limit(a_i, 0.001)
-    ensures forall x :: x in negatives ==> a_i(x) < 0.0;
+    ensures forall x :: x in negatives ==> a_i(x) < 0.0
     ensures exists N: nat :: positiveNat(N) && |negatives| <= N
 {
     var epsilon: real := 0.001;
@@ -638,7 +638,7 @@ method exercise3_1m(a_i: pos -> real) returns (ghost negatives: set<nat>)
     negatives := {};
     while i < N
         invariant 0 <= i <= N
-        invariant forall x :: x in negatives ==> a_i(x) < 0.0;
+        invariant forall x :: x in negatives ==> a_i(x) < 0.0
         invariant |negatives| <= i
     {
         if a_i(i) < 0.0 {
@@ -865,10 +865,24 @@ lemma absProd(a: real, b: real)
 
 }
 
-lemma div(a: real, b: real)
+lemma prodLessThan(a: real, b: real, c: real)
+    requires a > 0.0
+    requires 0.0 <= b < c 
+    ensures prod(a , b) < prod(a , c)
+{
+    
+}
+
+function div(a: real, b: real): real 
+    requires b != 0.0
+{
+    a / b
+}
+
+lemma divSmaller(a: real, b: real)
     requires a >= 0.0
     requires b > a
-    ensures a/(b) < 1.0
+    ensures div(a,b) < 1.0
 {
     var diff := b-a;
     assert a/(a+diff) < 1.0;
@@ -876,7 +890,8 @@ lemma div(a: real, b: real)
 
 lemma divCommute(a: real, b: real, c: real)
     requires c != 0.0
-    ensures a * (b/c) == (a/c)*b
+    // ensures a * (b/c) == (a/c)*b
+    ensures prod(a , div(b,c)) == prod(div(a,c),b)
 {
 }
 
@@ -900,60 +915,74 @@ lemma exercise3_18a(a_i: pos -> real, b_i: pos -> real, a_range: iset<real>, al:
         ensures exists N: nat :: positiveNat(N) && forall n: pos :: n > N ==> converges(prodSequence(a_i, b_i), n, epsilon, 0.0)
     {
         var max := maxReal(abs(al), abs(au))+1.0;
-        var epsilonOverMax := epsilon / max;
+        var epsilonOverMax := div(epsilon , max);
         assert positiveReal(epsilonOverMax);
         var N: nat :|  positiveNat(N) && forall n: pos :: n > N ==> converges(b_i, n, epsilonOverMax, 0.0);
-        if epsilon < 1.0 {
-            forall n: pos | n > N 
-                ensures converges(prodSequence(a_i, b_i), n, epsilon,  0.0)
-            {
-                assert converges(b_i, n, epsilonOverMax, 0.0);
+        forall n: pos | n > N 
+            ensures converges(prodSequence(a_i, b_i), n, epsilon,  0.0)
+        {
+            assert converges(b_i, n, epsilonOverMax, 0.0);
+            assert abs(b_i(n)-0.0) < epsilonOverMax;
+            assert abs(b_i(n)) < epsilonOverMax;
+            calc {
+            abs(prodSequence(a_i, b_i)(n)-0.0); 
+            abs(prodSequence(a_i, b_i)(n)); 
+            abs(prod(a_i(n), b_i(n))); 
+            }
+            absProd(a_i(n), b_i(n));
+            // assert prod(abs(a_i(n)) , abs(b_i(n))) == abs(prod(a_i(n), b_i(n)));
+            // assert abs(b_i(n)) < epsilonOverMax;
+            assert prod(abs(a_i(n)) , epsilonOverMax) < epsilon by {
+                assert al <= a_i(n) <= au;
+                var an := abs(a_i(n));
+                assert an >= 0.0;
+                var bx:=div(an,max); 
+                assert bx >= 0.0;
                 calc {
-                abs(prodSequence(a_i, b_i)(n)-0.0); 
-                abs(prodSequence(a_i, b_i)(n)); 
-                abs(prod(a_i(n), b_i(n))); 
+                    prod(abs(a_i(n)),  div(epsilon , max));
+                    prod(an,  div(epsilon , max));
+                    {divCommute(an, epsilon, max);}
+                    prod(div(an , max) , epsilon);
+                    prod(bx , epsilon);
+                    (bx) * epsilon;
                 }
-                absProd(a_i(n), b_i(n));
-                assert prod(abs(a_i(n)) , abs(b_i(n))) == abs(prod(a_i(n), b_i(n)));
-                assert b_i(n) < epsilonOverMax;
-                assert abs(b_i(n)) < epsilonOverMax;
-                assert abs(a_i(n)) * epsilonOverMax < epsilon by {
-                    assert al <= a_i(n) <= au;
-                    var an := abs(a_i(n));
-                    var bx:=abs(a_i(n))/max; 
-                    calc {
-                        abs(a_i(n)) * epsilon / max;
-                        an * epsilon / max;
-                        {divCommute(an, epsilon, max);}
-                        (an / max) * epsilon;
-                        (abs(a_i(n)) / max) * epsilon;
-                        (bx) * epsilon;
-                    }
-                    if abs(al) >= abs(au) {
-                        assert abs(a_i(n)) <= abs(al) < max;
-                        div(abs(a_i(n)), max);
-                        assert abs(a_i(n))/max < 1.0;
-                        smallerX(epsilon, bx);
-                        assert (bx) * epsilon < epsilon;
-                        assert (abs(a_i(n)) / max) * epsilon < epsilon;
-                        assert (bx) * epsilon == abs(a_i(n)) * epsilon / max;
-                        assert abs(a_i(n)) * epsilon / max < epsilon;
-                    }else{
-                        assert abs(a_i(n)) <= abs(au) < max;
-                        div(abs(a_i(n)), max);
-                        assert abs(a_i(n))/max < 1.0;
-                        assert 0.0 <= bx < 1.0;
-                        smallerX(epsilon, bx);
-                        assert (bx) * epsilon < epsilon;
-                        assert (bx) * epsilon == abs(a_i(n)) * epsilon / max;
-                        assert abs(a_i(n)) * epsilon / max < epsilon;
-                    }
-
+                if abs(al) >= abs(au) {
+                    // assert abs(a_i(n)) <= abs(al) < max;
+                    divSmaller(abs(a_i(n)), max);
+                    assert abs(a_i(n))/max < 1.0;
+                    smallerX(epsilon, bx);
+                    // assert (bx) * epsilon < epsilon;
+                    // assert (abs(a_i(n)) / max) * epsilon < epsilon;
+                    // assert bx == abs(a_i(n)) / max;
+                    // assert (bx) * epsilon == prod(abs(a_i(n)) , div(epsilon , max));
+                    assert prod(abs(a_i(n)) , div(epsilon , max)) < epsilon;
+                }else{
+                    assert abs(a_i(n)) <= abs(au) < max;
+                    divSmaller(abs(a_i(n)), max);
+                    assert abs(a_i(n))/max < 1.0;
+                    // assert 0.0 <= bx < 1.0;
+                    smallerX(epsilon, bx);
+                    // assert (bx) * epsilon < epsilon;
+                    // assert (bx) * epsilon == prod(abs(a_i(n)) , div(epsilon , max));
+                    assert prod(abs(a_i(n)) , div(epsilon , max)) < epsilon;
                 }
             }
-        }else{
-            assert false;
+            // assert abs(prodSequence(a_i, b_i)(n)-0.0) ==abs(prod(a_i(n), b_i(n)));  
+            if abs(a_i(n)) == 0.0 {
+                // assert prod(abs(a_i(n)),abs(b_i(n)))  < epsilon;
+                // assert abs(prod(a_i(n), b_i(n))) < epsilon; 
+                // assert abs(prodSequence(a_i, b_i)(n)-0.0) < epsilon;
+                assert converges(prodSequence(a_i, b_i), n, epsilon, 0.0);
+            }else if abs(a_i(n)) > 0.0 {
+                // assert abs(a_i(n)) > 0.0;
+                prodLessThan(abs(a_i(n)), abs(b_i(n)), epsilonOverMax);
+                assert prod(abs(a_i(n)),abs(b_i(n))) < prod(abs(a_i(n)),epsilonOverMax) < epsilon;
+                // assert abs(prod(a_i(n), b_i(n))) < epsilon; 
+                // assert abs(prodSequence(a_i, b_i)(n)-0.0) < epsilon;
+                assert converges(prodSequence(a_i, b_i), n, epsilon, 0.0);
+            }
         }
+
     }
 }
 // calc ==> {
