@@ -48,7 +48,7 @@ class TreeNode {
         this.repr := {this} + leftRepr + rightRepr;
     }
 
-    predicate Valid()
+    ghost predicate Valid()
         reads this, repr
         decreases repr
     {
@@ -70,7 +70,7 @@ class TreeNode {
         && (this.right == null && this.left == null ==> this.repr == {this})
     }
 
-    predicate iterativeValid()
+    ghost predicate iterativeValid()
         reads this, repr
         decreases repr
         requires this.Valid()
@@ -84,6 +84,7 @@ class TreeNode {
         ensures newRoot == this && newRoot.right == old(this.left) && newRoot.left == old(this.right)
         ensures newRoot.repr == old(this.repr) && newRoot.Valid()
         ensures forall node :: node in this.repr ==> node.right == old(node.left) && node.left == old(node.right)
+        ensures newRoot.Valid()
         decreases repr
     {
         var leftChild: TreeNode? := null;
@@ -98,21 +99,94 @@ class TreeNode {
         left := rightChild;
         return this;
     }
-
-
 }
 
-function method PreorderTraversal(root: TreeNode): seq<TreeNode>
+function PreorderTraversal(root: TreeNode): seq<TreeNode>
     reads root.repr
     requires root.Valid()
     // ensures forall x :: x in PreorderTraversal(root) ==> x.Valid()
     ensures forall x :: x in root.repr ==> x in PreorderTraversal(root)
+    ensures forall x :: x in PreorderTraversal(root) ==> x in root.repr
     ensures forall k :: 0 <= k < |PreorderTraversal(root)| ==> PreorderTraversal(root)[k] in root.repr && PreorderTraversal(root)[k].Valid()
-    ensures injectiveSeq(PreorderTraversal(root))
+    ensures forall x :: x in PreorderTraversal(root) ==> x.Valid()
+    ensures distinct(PreorderTraversal(root))
     ensures forall k :: 0 <= k < |PreorderTraversal(root)| ==> PreorderTraversal(root)[k] in root.repr
+    ensures ToSet(PreorderTraversal(root)) == root.repr
+    ensures root in PreorderTraversal(root) 
+    ensures root.left != null ==> root.left in PreorderTraversal(root)
+    ensures root.right != null ==> root.right in PreorderTraversal(root)
     // ensures forall k :: 0 <= k < |PreorderTraversal(root)| ==> forall child :: child in PreorderTraversal(root)[k].repr && child != child in PreorderTraversal(root)[k] ==> exists j :: k < j < |PreorderTraversal(root)| && PreorderTraversal(root)[j] == child
 {
    if root.left != null && root.right != null then [root]+PreorderTraversal(root.left)+PreorderTraversal(root.right) else if root.left != null then [root]+PreorderTraversal(root.left) else if root.right != null then [root]+PreorderTraversal(root.right) else [root]
+}
+
+lemma {:verify false} PreorderTraversalSubSlices(root: TreeNode)
+    requires root.Valid()
+    ensures forall node :: node in root.repr ==> exists k,j :: 0<=k<=j< |PreorderTraversal(root)| && PreorderTraversal(node) == PreorderTraversal(root)[k..j]
+    decreases root.repr
+{
+    forall node | node in root.repr 
+        ensures exists k,j :: 0<=k<=j<= |PreorderTraversal(root)| && PreorderTraversal(node) == PreorderTraversal(root)[k..j]
+    {
+        assert node != null;
+        if node == root {
+            assert PreorderTraversal(node) == PreorderTraversal(root)[0..|PreorderTraversal(root)|];
+            assert exists k,j :: 0<=k<=j<= |PreorderTraversal(root)| && PreorderTraversal(node) == PreorderTraversal(root)[k..j];
+        }else if node == root.left {
+            if root.right == null {
+                assert PreorderTraversal(root) == [root]+PreorderTraversal(root.left);
+                assert PreorderTraversal(node) == PreorderTraversal(root)[1..|PreorderTraversal(root)|];
+            }else{
+                assert PreorderTraversal(root) == [root]+PreorderTraversal(root.left)+PreorderTraversal(root.right);
+                assert |PreorderTraversal(root.left)| < |PreorderTraversal(root)|;
+                assert PreorderTraversal(node) == PreorderTraversal(root)[1..|PreorderTraversal(node)|+1];
+            }
+            assert exists k,j :: 0<=k<=j< |PreorderTraversal(root)| && PreorderTraversal(node) == PreorderTraversal(root)[k..j];
+        }else if node == root.right {
+            if root.left == null {
+                assert PreorderTraversal(root) == [root]+PreorderTraversal(root.right);
+                assert PreorderTraversal(node) == PreorderTraversal(root)[1..|PreorderTraversal(root)|];
+            }else{
+                assert PreorderTraversal(root) == [root]+PreorderTraversal(root.left)+PreorderTraversal(root.right);
+                assert |PreorderTraversal(root.left)| < |PreorderTraversal(root)|;
+                assert |PreorderTraversal(root.right)| < |PreorderTraversal(root)|;
+                assert PreorderTraversal(node) == PreorderTraversal(root)[(1+|PreorderTraversal(root.left)|)..|PreorderTraversal(root)|];
+            }
+            // assert exists k,j :: 0<=k<=j< |PreorderTraversal(root)| && PreorderTraversal(node) == PreorderTraversal(root)[k..j];
+        }else{
+
+            // assert exists k,j :: 0<=k<=j< |PreorderTraversal(root)| && PreorderTraversal(node) == PreorderTraversal(root)[k..j];
+        }
+    }
+    assert forall node :: node in root.repr ==> exists k,j :: 0<=k<=j<= |PreorderTraversal(root)| && PreorderTraversal(node) == PreorderTraversal(root)[k..j];
+}
+
+lemma PreorderTraversalEqualToRepr(root: TreeNode)
+    requires root.Valid()
+    ensures ToSet(PreorderTraversal(root)) == root.repr
+{
+    // var xs := ToSet(PreorderTraversal(root));
+    // forall x | x in xs
+    // ensures x in root.repr
+    // {
+    //     assert x in xs;
+    //     assert x in PreorderTraversal(root);
+    //     assert x in root.repr;
+    // }
+    // assert ToSet(PreorderTraversal(root)) <= root.repr;
+
+}
+
+lemma PreorderTraversalIndexAll(root: TreeNode)
+    requires root.Valid()
+    ensures forall x :: x in root.repr ==> exists k :: 0 <= k < |PreorderTraversal(root)| && PreorderTraversal(root)[k] == x
+{
+    PreorderTraversalEqualToRepr(root);
+    forall x | x in root.repr 
+        ensures exists k :: 0 <= k < |PreorderTraversal(root)| && PreorderTraversal(root)[k] == x
+    {
+        
+    }
 }
 
 lemma {:verify false} PreorderTraversalSubstrings(root: TreeNode)
@@ -174,7 +248,7 @@ lemma {:verify false} PreorderTraversalSubstrings(root: TreeNode)
 //     }
 // }
 
-predicate seqElement<A>(s: seq<A>, elem: A, k: nat)
+predicate seqElement<A(==)>(s: seq<A>, elem: A, k: nat)
 
 {
     0 <= k < |s| && elem in s && s[k] == elem
@@ -211,7 +285,81 @@ lemma {:verify true} PreorderTraversalChildrenAreLater(root: TreeNode)
     // assert forall x :: x in root.repr ==> exists k: nat :: 0 <= k < |PreorderTraversal(root)| && PreorderTraversal(root)[k] == x;
 }
 
+lemma {:verify true} childInRootRepr(root: TreeNode, child: TreeNode)
+    requires root.Valid()
+    requires child != null && child != root && child in root.repr
+    // requires k < |PreorderTraversal(root)| && PreorderTraversal(root)[k] == child
+    // ensures child.left != null ==> child.left in PreorderTraversal(root)
+    // ensures child.right != null ==> child.right in PreorderTraversal(root)
+    // ensures child.left != null ==> child.left in root.repr
+    // ensures child.right != null ==> child.right in root.repr
+    ensures root.left != null && root.right != null ==> child in root.left.repr || child in root.right.repr
+    ensures root.left != null && root.right == null ==> child in root.left.repr
+    ensures root.left == null && root.right != null ==> child in root.right.repr
+{
+    // assert child.Valid();
+    // assert child.left != null ==> child.left in PreorderTraversal(root);
+    if child.left != null {
+        // assert child.left in child.repr;
+        // assert child.left in root.repr;
+    }
+    if root.left != null && root.right != null {
+        assert child in root.left.repr || child in root.right.repr;
+    }else if root.left == null && root.right == null {
+        assert child in root.right.repr;
+    }else if root.right == null && root.left != null {
+        assert child in root.left.repr;
+    }else if root.right == null && root.left == null {
+        // assert root.right == null;
+        // assert root.left == null;
+        assert root.repr == {root};
+        assert false;
+    }
+}
 
+lemma {:verify true} childChildrenInRootRepr(root: TreeNode, child: TreeNode)
+    requires root.Valid()
+    requires child != null && child != root && child in root.repr
+    ensures child.repr < root.repr
+    decreases root.repr;
+{
+    childInRootRepr(root, child);
+    if root.left != null && child in root.left.repr {
+        if child == root.left {
+
+        }else{
+            childChildrenInRootRepr(root.left, child);
+            assert child.repr < root.left.repr;
+        }
+    }
+
+    if root.right != null && child in root.right.repr {
+        if child == root.right {
+
+        }else{
+
+            assert child.repr <= root.right.repr;
+        }
+    }
+}
+
+
+lemma {:verify true} later(root: TreeNode, child: TreeNode, k: nat)
+    requires root.Valid()
+    requires child != null && child != root && child in root.repr
+    requires k < |PreorderTraversal(root)| && PreorderTraversal(root)[k] == child
+    // ensures child.left != null ==> exists j: nat :: k < j < |PreorderTraversal(root)| && PreorderTraversal(root)[j] == child.left
+    // ensures child.right != null ==> exists j: nat :: k < j < |PreorderTraversal(root)| && PreorderTraversal(root)[j] == child.right
+{
+    childChildrenInRootRepr(root, child);
+    // assert child.Valid();
+    // assert child.left != null ==> child.left in PreorderTraversal(root);
+    assert child in PreorderTraversal(root);
+    if child.left != null {
+        assert child.left in child.repr;
+        assert child.left in root.repr;
+    }
+}
 
 
 lemma {:verify false} PreorderTraversalChildrenAreLater3(root: TreeNode, elem: TreeNode, k: nat) 
@@ -257,14 +405,8 @@ method  invertBinaryTree(root: TreeNode?) returns (newRoot: TreeNode?)
     decreases if root == null then {} else root.repr
 {
     if root != null {
-        var leftChild := null;
-        if root.left != null {
-            leftChild := invertBinaryTree(root.left);
-        }
-        var rightChild := root.right;
-        if root.right != null  {
-            rightChild := invertBinaryTree(root.right);
-        }
+        var leftChild := invertBinaryTree(root.left);
+        var rightChild := invertBinaryTree(root.right);
         root.right := leftChild;
         root.left := rightChild;
         return root;
@@ -329,14 +471,23 @@ twostate lemma ValidSwappingStillValid(root: TreeNode, child: TreeNode)
     assert child.Valid();
 }
 
-function TreeUnion(nodes: seq<TreeNode>): set<TreeNode>
+twostate lemma ValidSwapping(root: TreeNode)
+    requires root.Valid()
+    requires root.left == old(root.right) && root.right == old(root.left)
+    ensures root.Valid()
+{
+    // ChildNodesAreValid(root,child);
+    // assert child.Valid();
+}
+
+ghost function TreeUnion(nodes: seq<TreeNode>): set<TreeNode>
     reads set x | 0 <= x < |nodes| :: nodes[x]
 {
    if |nodes| > 0 then nodes[0].repr + TreeUnion(nodes[1..]) else {}
 }
 //fresh ensures that a variable was initialized by a method or two-state function
 
-method {:verify false} invertBinaryTreeIterative1(root: TreeNode?) returns (newRoot: TreeNode?)
+method {:verify } invertBinaryTreeIterative1(root: TreeNode?) returns (newRoot: TreeNode?)
     modifies if root != null then root.repr else {}
     requires root != null ==> root.Valid()
     ensures root == null ==> newRoot == null
@@ -351,6 +502,7 @@ method {:verify false} invertBinaryTreeIterative1(root: TreeNode?) returns (newR
 
     var nodes := PreorderTraversal(root);
     assert forall k :: 0 <= k < |nodes| ==> nodes[k] in root.repr && nodes[k].Valid();
+    assert distinct(nodes);
     ghost var visited: set<TreeNode> := {};
     ghost var unvisited: set<TreeNode> := root.repr;
     var i := 0;
@@ -358,23 +510,38 @@ method {:verify false} invertBinaryTreeIterative1(root: TreeNode?) returns (newR
         modifies root.repr
         invariant 0 <= i <= |nodes|
         invariant root.repr == old(root.repr)
-        invariant forall k::i < k <= |nodes| ==> unchanged(nodes[k])
-    //     // invariant visited == set k | k < i < |nodes| :: nodes[k]
-    //     invariant forall x :: x in nodes ==> x.Valid()
+        invariant forall k::i < k < |nodes| ==> unchanged(nodes[k])
+        invariant visited !! unvisited
+        invariant visited == set k | 0 <= k < i  :: nodes[k]
+        invariant forall x :: x in nodes ==> x.Valid()
+        invariant forall x :: x in unvisited ==> x.Valid()
+        invariant forall x :: x in visited ==> x.Valid()
     //     // invariant root.Valid()
     //     // invariant forall k :: 0<= k < i ==> nodes[k].right == old(nodes[k].left) && nodes[k].left == old(nodes[k].right)
     {
         assert nodes[i] in nodes;
         assert nodes[i] in root.repr;
         assert nodes[i].Valid();
+        assert nodes[i].left != null ==> nodes[i].left.Valid();
+        assert nodes[i].right != null ==> nodes[i].right.Valid();
+        // if nodes[i].left != null {
+        //     assert nodes[i].left in unvisited;
+        // }
+
+        // if nodes[i].right != null {
+        //     assert nodes[i].right in unvisited;
+        // }
     // //     var temp := nodes[i].left;
     // //     nodes[i].left := nodes[i].right;
     // //     nodes[i].right := temp;
-        nodes[i].left, nodes[i].right := nodes[i].right, nodes[i].left;
-        assert nodes[i].right == old(nodes[i].left) && nodes[i].left == old(nodes[i].right);
+        // nodes[i].left, nodes[i].right := nodes[i].right, nodes[i].left;
+        // assert nodes[i].right == old(nodes[i].left) && nodes[i].left == old(nodes[i].right);
+        // ValidSwapping(nodes[i]);
+        assert nodes[i].Valid();
     // //     // var newNode := swapChildren(nodes[i]);
     // //     ValidSwappingStillValid(root, nodes[i]);
-    // //     visited := visited + {nodes[i]};
+        visited := visited + {nodes[i]};
+        unvisited := unvisited - {nodes[i]};
         i := i + 1;
     }
     return root;

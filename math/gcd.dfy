@@ -2,11 +2,11 @@
 module Math {
     //imported from https://github.com/dafny-lang/dafny/blob/master/Test/dafny4/gcd.dfy
     type pos = x: nat | 1 <= x witness 1
-    predicate IsFactor(p: pos, x: pos) {
+    ghost predicate IsFactor(p: pos, x: pos) {
         exists q: pos ::  p * q == x
     }
 
-    function Factors(x: pos): set<pos> {
+    ghost function Factors(x: pos): set<pos> {
         set p: pos | p <= x  && IsFactor(p, x)  // error: set constructed must be finite
     }
 
@@ -59,7 +59,7 @@ module Math {
         assert x * 1 == x;
     }
 
-    function Max(s: set<pos>): pos
+    ghost function Max(s: set<pos>): pos
         requires s != {}
     {
         MaxExists(s);
@@ -73,7 +73,7 @@ module Math {
         var x := FindMax(s);
     }
 
-    function FindMax(s: set<pos>): (max: pos)
+    ghost function FindMax(s: set<pos>): (max: pos)
         requires s != {}
         ensures max in s && forall y :: y in s ==> y <= max
     {
@@ -87,7 +87,7 @@ module Math {
             if x < y then y else x
     }
 
-    function Min(s: set<pos>): pos 
+    ghost function Min(s: set<pos>): pos 
         requires s != {}
         ensures forall x | x in s :: Min(s) in s && Min(s) <= x
     {
@@ -96,6 +96,7 @@ module Math {
             x
         else
             var y := Min(s - {x});
+            assert s == (s-{x}) + {x};
             assert forall z | z in s :: z == x || (z in (s - {x}) && y <= z);
             if x < y then x else y
     }
@@ -104,7 +105,7 @@ module Math {
         requires s != iset{}
         ensures exists min :: min in s && forall x | x in s && x != min :: min < x; 
 
-    function iMin(s: iset<pos>): pos
+    ghost function iMin(s: iset<pos>): pos
         requires s != iset{}
         ensures forall x | x in s && x != iMin(s) :: iMin(s) in s ==> iMin(s) < x
     {
@@ -114,7 +115,7 @@ module Math {
     }
 
 
-    function Gcd(x: pos, y: pos): pos {
+    ghost function Gcd(x: pos, y: pos): pos {
         var common := Factors(x) * Factors(y);
         assert 1 in common by {
             FactorsContains1(x);
@@ -235,7 +236,7 @@ module Math {
         set x: int,y: int | 0 <= x <= a && 0 <= y <= b && linearCombination(a,x,b,y) > 0 :: linearCombination(a,x,b,y)
     }
 
-    function icombinationSet(a: pos, b: pos): iset<pos> 
+    ghost function icombinationSet(a: pos, b: pos): iset<pos> 
     {
         iset x: int,y: int | linearCombination(a,x,b,y) > 0 :: linearCombination(a,x,b,y)
         // iset x: int,y: int | a*x+b*y > 0 :: a*x+b*y

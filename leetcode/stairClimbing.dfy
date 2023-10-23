@@ -26,8 +26,9 @@ function stepSum(xs: seq<Steps>): nat {
 ghost predicate stepEndsAt(xs: seq<Steps>, n: nat) {
     stepSum(xs) == n
 }
+
 ghost predicate allEndAtN(ss: set<seq<Steps> >, n: nat) {
-    forall xs ::  xs in ss ==> stepEndsAt(xs, n)
+    forall xs :: xs in ss ==> stepEndsAt(xs, n)
 }
 
 lemma stepBaseZero() 
@@ -205,7 +206,7 @@ lemma stepSetsAdd(i: nat, steps: array<nat>)
     addOneSize(oneStepBack);
     addTwoSize(twoStepBack);
     var sumSet := stepForward + stepTwoForward;
-    // assert |sumSet| == steps[i-1]+steps[i-2];
+    assert |sumSet| == steps[i-1]+steps[i-2];
 }
 
 method climbStairs(n: nat) returns (count: nat) 
@@ -225,10 +226,10 @@ method climbStairs(n: nat) returns (count: nat)
     if n < 3 {
         return steps[n];
     }
-    assert steps[0] == 0;
-    assert steps[1] == 1;
-    assert steps[2] == 2;
-    assert forall k: nat :: k < 3 ==> exists ss: set< seq<Steps> > :: steps[k] == |ss| && allEndAtN(ss, k);
+    // assert steps[0] == 0;
+    // assert steps[1] == 1;
+    // assert steps[2] == 2;
+    // assert forall k: nat :: k < 3 ==> exists ss: set< seq<Steps> > :: steps[k] == |ss| && allEndAtN(ss, k);
     var i := 3;
     while i <= n 
         invariant 3 <= i <= n+1

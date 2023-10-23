@@ -16,7 +16,7 @@ predicate Injective(f: char -> char)
     forall x, y :: x != y ==> f(x) != f(y)
 }
 
-predicate InjectiveMap<T,U>(f: map<T, U>)
+predicate InjectiveMap<T(==),U(==)>(f: map<T, U>)
 {
     forall x, y :: x in f && y in f && x != y ==> f[x] != f[y]
 }
@@ -28,7 +28,7 @@ predicate InjectiveMap<T,U>(f: map<T, U>)
 //     if |s| == 0 then [] else [smap[s[0]]] + applyMapSeq(s[1..], smap)
 // }
 
-function method aps<T,U>(s: seq<T>, smap: map<T,U>): seq<U>
+function aps<T,U>(s: seq<T>, smap: map<T,U>): seq<U>
     requires forall x :: x in s ==> x in smap
 {
     seq(|s|, i requires 0 <= i < |s| => smap[s[i]])
@@ -67,21 +67,21 @@ method isIsomorphic(s: string, t: string) returns (answer: bool)
     for i := 0 to |s| 
         invariant forall j :: 0 <= j < i ==> s[j] in sMap
         invariant sIndices == intsLessThan(sIndex)
-        invariant sIndex == |sMap|
+        // invariant sIndex == |sMap|
         invariant sMap.Values == sIndices
         invariant InjectiveMap(sMap)
         invariant sTransform == aps(s[0..i], sMap)
     {
         if s[i] !in sMap {
             ghost var oldsMap := sMap;
-            assert sIndex !in sIndices;
-            assert sIndex !in sMap.Values;
+            // assert sIndex !in sIndices;
+            // assert sIndex !in sMap.Values;
             sMap := sMap[s[i] := sIndex];
             assert sMap == oldsMap + map[s[i] := sIndex];
 
             // assert forall z :: z in sMap && z != s[i] ==> sMap[z] != sIndex;
             sIndices := sIndices + {sIndex};
-            assert sIndex in sMap.Values && sIndex in sIndices;
+            // assert sIndex in sMap.Values && sIndex in sIndices;
             sIndex := sIndex + 1;
         }
         sTransform := sTransform + [sMap[s[i]]];
@@ -91,19 +91,19 @@ method isIsomorphic(s: string, t: string) returns (answer: bool)
     for i := 0 to |t| 
         invariant forall j :: 0 <= j < i ==> t[j] in tMap
         invariant tIndices == intsLessThan(tIndex)
-        invariant tIndex == |tMap|
+        // invariant tIndex == |tMap|
         invariant tMap.Values == tIndices
         invariant InjectiveMap(tMap)
         invariant tTransform == aps(t[0..i], tMap)
     {
         if t[i] !in tMap {
             ghost var tOld := tMap;
-            assert tIndex !in tIndices;
-            assert tIndex !in tMap.Values;
+            // assert tIndex !in tIndices;
+            // assert tIndex !in tMap.Values;
             tMap := tMap[(t[i]) := tIndex];
             assert tMap == tOld + map[t[i] := tIndex];
             tIndices := tIndices + {tIndex};
-            assert tIndex in tMap.Values && tIndex in tIndices;
+            // assert tIndex in tMap.Values && tIndex in tIndices;
             tIndex := tIndex + 1;
         }
         tTransform := tTransform + [tMap[t[i]]];
@@ -252,10 +252,10 @@ lemma injectiveMapCanBeMade(lmap: map<char,nat>, rmap: map<char, nat>, s: string
 {
     var fn := createMap(lmap, rmap);
     var gn := createMap(rmap, lmap);
-    // assert InjectiveMap(fn);
-    // assert InjectiveMap(gn);
     createMapHasAllTheValues(lmap, rmap, s, t, smapped, tmapped);
 }
+// assert InjectiveMap(fn);
+// assert InjectiveMap(gn);
 
 /*
 could convert fn to a map

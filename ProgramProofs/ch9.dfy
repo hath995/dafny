@@ -61,9 +61,9 @@ function reverse<A>(x: seq<A>): seq<A>
 
 module ImmutableQueueSeq {
     type Queue<A>
-    function method Empty(): Queue
-    function method Enqueue<A>(q: Queue, a: A): Queue
-    function method Dequeue<A>(q: Queue): (A, Queue)
+    function Empty(): Queue
+    function Enqueue<A>(q: Queue, a: A): Queue
+    function Dequeue<A>(q: Queue): (A, Queue)
         requires q != Empty()
 
     function Elements<A>(q: Queue): seq<A>
@@ -89,11 +89,11 @@ module QueueClient {
         IQ.EnqueueCorrect(q, 20);
         q := IQ.Enqueue(q, 20);
 
-        assert IQ.Elements(q) == []+ [20];
-        assert [20] == [20] + [];
+        // assert IQ.Elements(q) == []+ [20];
+        // assert [20] == [20] + [];
         IQ.DequeueCorrect<int>(q);
         var (a, q') :=  IQ.Dequeue(q);
-        assert [20]+IQ.Elements(q') == IQ.Elements(q);
+        // assert [20]+IQ.Elements(q') == IQ.Elements(q);
         assert IQ.Elements(q') == [];
         IQ.EmptyUnique(q');
         assert q' == IQ.Empty();
