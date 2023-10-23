@@ -373,6 +373,107 @@ predicate CauchyCriterion(a_i: pos -> real, epsilon: real, m: pos, n: pos) {
     abs(a_i(m)-a_i(n)) < epsilon
 }
 
+ghost predicate MonotonicIncreasingPos(k_i: pos -> pos) {
+    forall n,m :: n < m ==> k_i(n) < k_i(m)
+}
+
+ghost predicate MonotonicIncreasingSequence(a_i: pos -> real) {
+    forall n,m :: n < m ==> a_i(n) <= a_i(m)
+}
+
+ghost predicate MonotonicDecreasingSequence(a_i: pos -> real) {
+    forall n,m :: n < m ==> a_i(n) >= a_i(m)
+}
+
+ghost predicate Monotone(a_i: pos -> real) {
+    MonotonicIncreasingSequence(a_i) || MonotonicDecreasingSequence(a_i)
+}
+
+function double(n: pos): pos  {
+    2 * n
+}
+
+lemma doubleIsMonotoneInc() 
+    ensures MonotonicIncreasingPos(double)
+{
+
+}
+
+function SubSequenceOf(a_i: pos -> real, k_i: pos -> pos): pos -> real
+    requires MonotonicIncreasingPos(k_i)
+{
+    (n: pos) => a_i(k_i(n))
+}
+
+lemma SubSequenceOfMonotoneSequenceIsMonotone(a_i: pos -> real, k_i: pos -> pos, a: real)
+    requires MonotonicIncreasingPos(k_i)
+    requires Monotone(a_i)
+    ensures Monotone(SubSequenceOf(a_i, k_i))
+{
+
+}
+
+lemma MonotoneConvergenceThmInc(a_i: pos -> real)
+    requires MonotonicIncreasingSequence(a_i)
+    ensures (forall a: real :: !Limit(a_i, a)) || exists a: real :: sup(iset n: pos | true :: a_i(n), a) && Limit(a_i, a)
+
+
+lemma MonotoneConvergenceThmDec(a_i: pos -> real)
+    requires MonotonicDecreasingSequence(a_i)
+    ensures (forall a: real :: !Limit(a_i, a)) || exists a: real :: inf(iset n: pos | true :: a_i(n), a) && Limit(a_i, a)
+
+lemma WellOrderingPrinciple(s: iset<pos>)
+    requires s != iset{}
+    ensures exists min :: min in s && forall x | x in s && x != min :: min < x; 
+
+lemma {:verify false} TEstThing(k: nat, d_i: pos -> pos)
+    requires MonotonicIncreasingPos(d_i) 
+    // ensures exists k :: positiveNat(k) && d_i(k) > k
+{
+    assert forall n: pos :: d_i(1) <= d_i(n);
+}
+
+lemma {:verify false} sequenceConverges(a_i: pos -> real, k_i: pos -> pos, a: real)
+    ensures Limit(a_i, a) <==> forall d_i: pos -> pos :: MonotonicIncreasingPos(d_i) ==> Limit(SubSequenceOf(a_i, d_i), a)
+{
+    if Limit(a_i, a) {
+        forall d_i: pos -> pos | MonotonicIncreasingPos(d_i) 
+            ensures Limit(SubSequenceOf(a_i, d_i), a) 
+        {
+            forall epsilon: real | positiveReal(epsilon) 
+                ensures exists LN :: positiveNat(LN) && forall n :: n > LN ==> converges(SubSequenceOf(a_i, d_i), n, epsilon, a)
+            {
+                var N :| positiveNat(N) && forall n :: n > N ==> converges(a_i, n, epsilon, a);
+                var k :| positiveNat(k) && d_i(k) > N;
+            }
+        }
+    }//else if forall d_i: pos -> pos :: MonotonicIncreasingPos(d_i) && Limit(SubSequenceOf(a_i, d_i), a) {
+
+    //}
+}
+
+lemma {:verify false} MonotoneSubsequenceConverges(a_i: pos -> real, k_i: pos -> pos, a: real)
+    requires MonotonicIncreasingPos(k_i)
+    requires Monotone(a_i)
+    requires Limit(SubSequenceOf(a_i, k_i), a)
+    ensures Limit(a_i, a)
+{
+    sequenceConverges(a_i, k_i, a);
+    assert Limit(a_i, a) ==> forall d_i: pos -> pos :: MonotonicIncreasingPos(d_i) && Limit(SubSequenceOf(a_i, d_i), a);
+    assert Limit(a_i, a) <== forall d_i: pos -> pos :: MonotonicIncreasingPos(d_i) && Limit(SubSequenceOf(a_i, d_i), a);
+    if !Limit(a_i, a) {
+        if !MonotonicIncreasingPos(k_i) {
+            assert false;
+        }else if !Limit(SubSequenceOf(a_i, k_i), a) {
+            assert false;
+        }else {
+            assert MonotonicIncreasingPos(k_i) && Limit(SubSequenceOf(a_i, k_i), a) ;
+            assert !(forall d_i: pos -> pos :: MonotonicIncreasingPos(d_i) && Limit(SubSequenceOf(a_i, d_i), a));
+            assert false;
+        }
+    }
+}
+
 ghost predicate isCauchy(a_i: pos -> real) {
     forall epsilon: real :: positiveReal(epsilon) ==> exists N: nat :: positiveNat(N) && forall n: pos,m:pos :: m > n > N ==> CauchyCriterion(a_i, epsilon, m, n)
 }
