@@ -68,3 +68,28 @@ method isAnagram(s: string, t: string) returns (equal: bool)
     var tmset := toMultiset(t);
     equal := msetEqual(smset, tmset);
 }
+
+method GroupAnagram(strs: seq<string>) returns (out: seq<seq<string>>) 
+    ensures forall anagram :: anagram in out ==> forall i,j :: 0 <= i < j < |anagram| ==> multiset(anagram[i]) == multiset(anagram[j])
+{
+    out := [];
+    var anamap: map<multiset<char>, seq<string>> := map[];
+    for i := 0 to |strs| 
+        invariant forall key :: key in anamap ==> forall i :: 0 <= i  < |anamap[key]| ==> key == multiset(anamap[key][i])
+    {
+        var ms := multiset(strs[i]);
+        if ms in anamap {
+            anamap := anamap[ms := anamap[ms]+[strs[i]]];
+        }else{
+            anamap := anamap[ms := [strs[i]]];
+        }
+    }
+    var keys := anamap.Keys;
+    while keys != {} 
+        invariant forall anagram :: anagram in out ==> forall i,j :: 0 <= i < j < |anagram| ==> multiset(anagram[i]) == multiset(anagram[j])
+    {
+        var x :| x in keys;
+        out := out + [anamap[x]];
+        keys := keys - {x};
+    }
+}
