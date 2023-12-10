@@ -87,6 +87,29 @@ lemma multisetSubsetSmaller<T(==)>(ms: multiset<T>, mss: multiset<T>)
     }
 }
 
+lemma multisetSubsetSmallerEqual<T(==)>(ms: multiset<T>, mss: multiset<T>)
+    requires mss <= ms
+    ensures |mss| <= |ms|
+{
+    if |ms| == 0 {
+
+    }else{
+        var x :| x in ms;
+        if mss[x] == ms[x] {
+            multisetSubsetSmallerEqual(ms[x:=0], mss[x:=0]);
+        }else if mss[x] < ms[x] {
+            if mss[x:=0] < ms[x:=0] {
+                multisetSubsetSmallerEqual(ms[x:=0], mss[x:=0]);
+            }else{
+                assert mss[x:=0] == ms[x:=0];
+                assert |mss[x:=0]| == |ms[x:=0]|;
+                assert |mss| < |ms|;
+
+            }
+        }
+    }
+}
+
 lemma allSubmultisetsShorter(s: string, mss: multiset<char>)
     requires |s| > 0
     requires mss < multiset(s)
@@ -100,13 +123,7 @@ lemma allSubmultisetsShorter(s: string, mss: multiset<char>)
     forall xx | xx in allStrings(mss)
         ensures |xx| < |s|
     {
-        // if multiset(xx) == ms {
-        // //     msLength(xx);
-        // //  |xx| < |s|
-        // assert false;
-        // }else if multiset(xx) < ms {
             multisetSubsetSmaller(ms, multiset(xx));
-        // }
     }
 }
 
@@ -116,11 +133,43 @@ method Test() {
      var ms:= multiset(example);
      assert example in allPalindromeStrings(ms);
 }
+lemma LargestOddsEmpty(ms: multiset<char>)
+    requires largestOdd(ms) == multiset{}
+    ensures allEven(ms)
+{
+    var candidates: set<char> := set x | charCountOdd(x,ms) && (forall y :: charCountOdd(y,ms) ==> ms[x] >= ms[y]);
+    assert |candidates| == 0;
+    var odds := set x | charCountOdd(x, ms);
+    assert odds == {} by {
+        if odds != {} {
+            var zs := set z | z in odds :: ms[z];
+            var z :| charCountOdd(z, ms);
+            assert z in odds;
+            assert ms[z] in zs;
+            ThereIsAMaximum(zs);
+            var max :| max in zs && forall y :: y in zs ==> max >= y;
+            var q :| q in odds && ms[q] == max;
+            assert charCountOdd(q, ms);
+            forall y | charCountOdd(y, ms)
+                ensures max >= ms[y]
+            {
+                assert y in odds;
+                assert ms[y] in zs;
+            }
+            assert q in candidates;
+        }
+    }
+    if !(forall x :: ms[x] % 2 == 0) {
+        var x :| ms[x]%2 ==1;
+        assert x in odds;
+    }
+}
 
 ghost function largestOdd(ms: multiset<char>) : multiset<char> 
     ensures largestOdd(ms) != multiset{} ==> forall x :: x in largestOdd(ms) ==> ms[x] % 2 == 1
+    // ensures largestOdd(ms) == multiset{} ==> forall x :: ms[x] % 2 == 0
 {
-    var candidates: set<char> := set x | x in ms && ms[x] % 2 == 1 && (forall y :: y in ms ==> ms[x] >= ms[y]);
+    var candidates: set<char> := set x | charCountOdd(x,ms) && (forall y :: charCountOdd(y,ms) ==> ms[x] >= ms[y]);
     var stub: multiset<char> := multiset{};
     if |candidates| == 0 then 
         multiset{}
@@ -128,11 +177,28 @@ ghost function largestOdd(ms: multiset<char>) : multiset<char>
 }
 
 lemma noLargestNoOdds(ms: multiset<char>)
-    requires (set x | x in ms && ms[x] % 2 == 1 && (forall y :: y in ms ==> ms[x] >= ms[y])) == {}
-    ensures forall x :: x in ms ==> ms[x] % 2 == 0
+    requires (set x | charCountOdd(x, ms) && (forall y :: charCountOdd(y, ms) ==> ms[x] >= ms[y])) == {}
+    ensures allEven(ms)
 {
+    var largest := (set x | charCountOdd(x, ms) && (forall y :: charCountOdd(y, ms) ==> ms[x] >= ms[y]));
+    assert largest == {};
     if !(forall x :: x in ms ==> ms[x] % 2 == 0) {
         var y :| y in ms && ms[y] % 2 == 1;
+        var  odds := set x | charCountOdd(x, ms);
+        assert y in odds;
+        var sizes := set x | charCountOdd(x, ms) :: ms[x];
+        assert ms[y] in sizes;
+        ThereIsAMaximum(sizes);
+        var max :| max in sizes && forall z :: z in sizes ==> max >= z;
+        var q :| q in odds && ms[q] == max;
+        assert charCountOdd(q, ms);
+        forall x | charCountOdd(x, ms)
+            ensures ms[q] >= ms[x]
+        {
+            assert x in odds;
+            assert ms[x] in sizes;
+        }
+        assert q in largest;
     }
 }
 
@@ -145,49 +211,48 @@ lemma largestExistsRev(ms: multiset<char>)
     assert y in res;
 }
 
-lemma largestExists(ms: multiset<char>)
-    requires (set x | x in ms && ms[x] % 2 == 1) != {}
-    ensures exists y :: y in ms && ms[y] % 2 == 1 && forall x :: x in ms && ms[x] % 2 == 1 ==> ms[y] >= ms[x]
+lemma ThereIsAMaximum(s: set<int>)
+  requires s != {}
+  ensures exists x :: x in s && forall y :: y in s ==> x >= y
 {
-    var res := (set x | x in ms && ms[x] % 2 == 1);
-    var stub:multiset<char> := multiset{};
-    var y :| y in res;
-    if res-{y} == {} {
-        assert res == {y};
-        var msy := stub[y := ms[y]];
-        assert forall z :: z in ms && ms[z] % 2 == 1 ==> z in res && ms[y] >= ms[z];
-        // assert y in ms && ms[y] % 2 == 1;
-        // assert y in ms && ms[y] % 2 == 1 && forall z :: z in ms && ms[z] % 2 == 1 ==> ms[y] >= ms[z];
-    }else{
-        var res' := res-{y};
-        var ms' := ms-stub[y := ms[y]];
-        if forall x :: x in ms && ms[x] % 2 ==1 ==> ms[y] >= ms[x] {
-
-        }else{
-            largestExists(ms');
-        }
-        // largestExists(ms');
-    }
-    // var y :| exists y :: y in ms && ms[y] % 2 == 1 && forall x :: x in ms && ms[x] % 2 == 1 && ms[y] >= ms[x];
-    // assert y in res;
+  var x :| x in s;
+  if s == {x} {
+  } else {
+    var s' := s - {x};
+    assert s == s' + {x};
+    ThereIsAMaximum(s');
+  }
 }
 
-lemma noLargestOddsNoOdds(ms: multiset<char>) 
-    requires largestOdd(ms) == multiset{}
-    ensures allEven(ms)
-{
-    if !allEven(ms) {
-        var lo := largestOdd(ms);
-        var allOdds := set x | x in ms && ms[x] % 2 == 1;
-        var x :| x in ms && ms[x] % 2 == 1;
-        assert x in allOdds;
-        largestExists(ms);
-        var y :| y in ms && ms[y] % 2 == 1 && forall x :: x in ms && ms[x] % 2 == 1 ==> ms[y] >= ms[x];
-        assert y in largestOdd(ms);
-        assert false;
+predicate charCountOdd(x: char, ms: multiset<char>) {
+    x in ms && ms[x] % 2 == 1
+}
 
-        // assert x in largestOdd(ms);
-    }
+predicate charCountEven(x: char, ms: multiset<char>) {
+    x in ms && ms[x] % 2 == 0
+}
+
+lemma LargestExists(ms: multiset<char>)
+  requires (set x | charCountOdd(x, ms)) != {}
+  ensures exists x :: charCountOdd(x, ms) && (forall y :: charCountOdd(y, ms) ==> ms[x] >= ms[y])
+{
+  var odds := set x| charCountOdd(x, ms);
+  assert odds != {};
+  var counts := set x | charCountOdd(x, ms) :: ms[x];
+  var x :| x in odds;
+  assert ms[x] in counts;
+  assert counts != {};
+  ThereIsAMaximum(counts);
+  var max :| max in counts && forall y :: y in counts ==> max >= y;
+  var q :| q in odds && ms[q] == max;
+  assert charCountOdd(q, ms);
+  forall y | charCountOdd(y, ms)
+    ensures max >= ms[y]
+  {
+    assert y in odds;
+    assert ms[y] in counts;
+  }
+
 }
 
 predicate allEven(ms: multiset<char>) {
@@ -212,12 +277,13 @@ ghost function evenPlusRectEvens(ms: multiset<char>): multiset<char>
 
 ghost function largePalindromeMultiset(str: string): multiset<char>
     ensures largestOdd(multiset(str)) == multiset{} ==> allEven(largePalindromeMultiset(str))
-    ensures largestOdd(multiset(str)) != multiset{} ==> exists k :: k in largePalindromeMultiset(str) && 
-        largePalindromeMultiset(str)[k] % 2 ==1 && 
-        (forall y :: y in multiset(str) && multiset(str)[y] % 2 ==1 ==> largePalindromeMultiset(str)[k] >= multiset(str)[y] )
-        && forall kk :: kk != k && kk in largePalindromeMultiset(str) ==> largePalindromeMultiset(str)[kk] % 2 == 0
+    // ensures largestOdd(multiset(str)) != multiset{} ==> exists k :: k in largePalindromeMultiset(str) && largePalindromeMultiset(str)[k] % 2 ==1 && 
+    ensures largestOdd(multiset(str)) != multiset{} ==> exists k :: charCountOdd(k,largePalindromeMultiset(str)) && 
+        (forall y :: charCountOdd(y, multiset(str)) ==> largePalindromeMultiset(str)[k] >= multiset(str)[y] )
+        && forall kk :: kk != k && kk in largePalindromeMultiset(str) ==> charCountEven(kk, largePalindromeMultiset(str))
     ensures largePalindromeMultiset(str) <= multiset(str)
     ensures forall zz :: zz in largePalindromeMultiset(str) && largePalindromeMultiset(str)[zz] % 2 == 0 ==> largePalindromeMultiset(str)[zz] <= multiset(str)[zz]
+    ensures forall zz :: zz in largePalindromeMultiset(str) && largePalindromeMultiset(str)[zz] % 2 == 0 ==> largePalindromeMultiset(str)[zz] == multiset(str)[zz]||largePalindromeMultiset(str)[zz] == multiset(str)[zz]-1
     ensures forall zz :: zz in largePalindromeMultiset(str) && multiset(str)[zz] % 2 == 0 ==> largePalindromeMultiset(str)[zz] == multiset(str)[zz]
     // ensures forall zz :: zz in largePalindromeMultiset(str) && multiset(str)[zz] % 2 == 1 ==> largePalindromeMultiset(str)[zz] == multiset(str)[zz] -1
 {
@@ -236,7 +302,7 @@ ghost function largePalindromeMultiset(str: string): multiset<char>
 
 lemma AllEvenOrOneOdd(substr: string, str: string) 
     requires substr in allPalindromSubStrings(str)
-    ensures allEven(multiset(substr)) || exists k :: k in multiset(substr) && multiset(substr)[k] % 2 == 1 && forall y :: y != k && y in multiset(substr) ==> multiset(substr)[y] % 2 == 0
+    ensures allEven(multiset(substr)) || exists k :: charCountOdd(k, multiset(substr)) && forall y :: y != k && y in multiset(substr) ==>charCountEven(y,multiset(substr))
 
 
 
@@ -248,24 +314,63 @@ lemma {:verify false} lpmGreaterAllPalindromes(str: string)
     forall ss | ss in allPalindromSubStrings(str) 
         ensures |ss| <= |lpm|
     {
+        assert |ss| == |multiset(ss)|;
         AllEvenOrOneOdd(ss, str);
         if allEven(multiset(ss)) {
             assert multiset(ss) <= multiset(str);
             assert multiset(ss) <= lpm;
         }else{
+            assert !allEven(multiset(ss));
+            assert multiset(ss) <= multiset(str);
             // assert multiset(ss) <= lpm;
             // assert |multiset(ss)| <= |lpm|;
             var largestOdds := largestOdd(multiset(str));
-            var k :| k in multiset(ss) && multiset(ss)[k] % 2 == 1;
-            var j :| j in lpm && 
-        lpm[j] % 2 ==1 && 
-        (forall y :: y in multiset(str) && multiset(str)[y] % 2 ==1 ==> lpm[j] >= multiset(str)[y] )
-        && forall kk :: kk != j && kk in largePalindromeMultiset(str) ==> largePalindromeMultiset(str)[kk] % 2 == 0;
-            assert multiset(ss)[k] <= lpm[j];
+            if largestOdds == multiset{} {
+                LargestOddsEmpty(largestOdds);
+                /*
+                I assumed that if largestOdds was empty then the substring odds would be empty
+                but it could be the substring odd char was an even char in the original string
+                */
+                assert false;
+            }else{
+            var lo :| lo in largestOdds && lo in lpm;
+            var k :| charCountOdd(k, multiset(ss)) && forall y :: y != k && y in multiset(ss) ==> charCountEven(y, multiset(ss));
+            var j :| charCountOdd(j, lpm) && (forall y :: charCountOdd(y, multiset(str)) ==> lpm[j] >= multiset(str)[y] ) && forall kk :: kk != j && kk in lpm ==> charCountEven(kk, lpm);
+            assert lo == j;
+            // assert charCountOdd(k ,multiset(str));
+            // if k in LargestExists
+            // assert multiset(ss)[k] <= lpm[j];
 
             var stub: multiset<char> := multiset{};
             var ssm := multiset(ss)-stub[k := multiset(ss)[k]];
             assert allEven(ssm);
+            assert ssm <= lpm;
+            if charCountEven(k, multiset(str)) {
+                assert multiset(ss)[k] < lpm[k];
+                assert multiset(ss) <= lpm;
+                multisetSubsetSmallerEqual(lpm, multiset(ss));
+                assert |multiset(ss)| <= |lpm|;
+            }else {
+                /**
+                    "aaabbbxxzzq"
+                    lpm == "aaabbxxzz"
+                    j=="a"
+                    k=="b"
+                    ss == "bbbaaxxzz"
+                 */
+                assert charCountOdd(k, multiset(str));
+                assert multiset(ss)[k] <= lpm[j];
+                if k in lpm {
+
+                assume |multiset(ss)| <= |lpm|;
+                }else{
+
+                assume |multiset(ss)| <= |lpm|;
+                }
+                // assert multiset(ss) <= lpm;
+                // multisetSubsetSmallerEqual(lpm, multiset(ss));
+            }
+            }
             // assert ssm <= lpm;
 
         }
