@@ -127,6 +127,15 @@ ghost function largestOdd(ms: multiset<char>) : multiset<char>
     else var x :| x in candidates; stub[x := ms[x]]
 }
 
+lemma noLargestNoOdds(ms: multiset<char>)
+    requires (set x | x in ms && ms[x] % 2 == 1 && (forall y :: y in ms ==> ms[x] >= ms[y])) == {}
+    ensures forall x :: x in ms ==> ms[x] % 2 == 0
+{
+    if !(forall x :: x in ms ==> ms[x] % 2 == 0) {
+        var y :| y in ms && ms[y] % 2 == 1;
+    }
+}
+
 lemma largestExistsRev(ms: multiset<char>)
     requires exists y :: y in ms && ms[y] % 2 == 1 && forall x :: x in ms && ms[x] % 2 == 1 && ms[y] >= ms[x]
     ensures (set x | x in ms && ms[x] % 2 == 1) != {}
@@ -172,6 +181,10 @@ lemma noLargestOddsNoOdds(ms: multiset<char>)
         var allOdds := set x | x in ms && ms[x] % 2 == 1;
         var x :| x in ms && ms[x] % 2 == 1;
         assert x in allOdds;
+        largestExists(ms);
+        var y :| y in ms && ms[y] % 2 == 1 && forall x :: x in ms && ms[x] % 2 == 1 ==> ms[y] >= ms[x];
+        assert y in largestOdd(ms);
+        assert false;
 
         // assert x in largestOdd(ms);
     }
