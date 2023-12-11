@@ -1,4 +1,6 @@
 include "../lib/seq.dfy"
+include "LongestPalindromSupp.dfy"
+import opened Palindrome
 import opened Seq
 /*
 function toMultiset(s: string): Map<string, number> {
@@ -25,9 +27,9 @@ function longestPalindrome(s: string): number {
         }
     }
     if(odds.length > 0) {
-      odds.sort();
-      length += odds.pop();
-      length += odds.reduce((total, x) => total+x-1, 0);
+    odds.sort();
+    length += odds.pop();
+    length += odds.reduce((total, x) => total+x-1, 0);
     }
 
     return length;
@@ -161,13 +163,15 @@ method longestPalindromePartial(s: string) returns (length: int, odds: seq<nat>,
     allOnesDistinct(oddKey);
 }
 
-method  longestPalindromePieces(s: string) returns (length: int, ghost pt: string) 
+method  longestPalindromePieces(s: string) returns (length: int, ghost pt: string, ghost ptmset: multiset<char>) 
     ensures |pt| == length 
     ensures IsPalindrome(pt)
     ensures multiset(pt) <= multiset(s) 
+    ensures multiset(pt) == ptmset
     //ensures forall x :: x in allStrings(multiset(s)) ==> |s| <= |pt|
 {
     var plength, odds, oddKey, ppt, ptMset, oddMset :=longestPalindromePartial(s);
+    ptmset := ptMset;
     length := plength;
     pt := ppt;
 
@@ -181,7 +185,9 @@ method  longestPalindromePieces(s: string) returns (length: int, ghost pt: strin
         assert forall i :: 1 <= i < |oddKey| ==> oddKey[i] !in ptMset;
 
         ptMset := ptMset[oddKey[0] := odds[0]];
+        ptmset := ptmset[oddKey[0] := odds[0]];
         assert ptMset == multiset(pt);
+        assert ptmset == multiset(pt);
         assert ptMset <= multiset(s);
         assert length == |pt|;
         // assert forall count :: count in odds ==> count > 0 && count % 2 == 1;
@@ -202,6 +208,7 @@ method  longestPalindromePieces(s: string) returns (length: int, ghost pt: strin
 
             invariant forall k :: i < k < |oddKey| ==> oddKey[k] !in ptMset
             invariant ptMset == multiset(pt)
+            invariant ptmset == multiset(pt)
             invariant ptMset <= multiset(s)
         {
             assert odds[i] in odds; 
@@ -218,11 +225,12 @@ method  longestPalindromePieces(s: string) returns (length: int, ghost pt: strin
             pt := repchar+pt+repchar;
             length := length + odds[i] - 1;
             ptMset := ptMset[oddKey[i+1] := odds[i]-1];
+            ptmset := ptmset[oddKey[i+1] := odds[i]-1];
         }
     }
 }
 
-method {:verify false} longestPalindrome(s: string) returns (length: int, ghost pt: string) 
+method {:verify false} longestPalindrome(s: string) returns (length: int, ghost pt: string, ptmset: multiset<char>) 
     ensures |pt| == length 
     ensures IsPalindrome(pt)
     ensures multiset(pt) <= multiset(s) 
