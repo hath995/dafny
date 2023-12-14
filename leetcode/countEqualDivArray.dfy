@@ -13,109 +13,120 @@ function countPairs(nums: number[], k: number): number {
 };
 */
 
-function matchPairs(nums: seq<nat>, k: nat): nat 
+function pairs(nums: seq<nat>, k: nat): set<(int, int)> 
     requires k > 0
 {
-    |set x,y | 0 <= x < y < |nums| && nums[x] == nums[y] && (x*y) % k == 0 :: (x,y)|
+    set x,y | 0 <= x < y < |nums| && satPairs(nums, k, x, y) :: (x,y)
 }
 
-function method pairs(nums: seq<nat>, k: nat): set<(int, int)> 
-    requires k > 0
-{
-    set x,y | 0 <= x < y < |nums| && nums[x] == nums[y] && (x*y) % k == 0 :: (x,y)
-}
-
-function method pairsI(nums: seq<nat>, k: nat, i: nat): set<(nat, nat)> 
+function pairsI(nums: seq<nat>, k: nat, i: nat): set<(nat, nat)> 
     requires k > 0
     requires 0 <= i < |nums|
-    ensures forall x,y :: 0 <= x < i && x <= y < |nums| && satPairs(nums, k, x, y) ==> (x,y) in pairsI(nums, k, i)
+    // ensures forall x,y :: 0 <= x < i && x < y < |nums| && satPairs(nums, k, x, y) ==> (x,y) in pairsI(nums, k, i)
 {
-    set x: nat,y:nat | 0 <= x < i && x <= y < |nums| && satPairs(nums, k, x, y) :: (x,y)
+    set x: nat,y:nat | 0 <= x < i && x < y < |nums| && satPairs(nums, k, x, y) :: (x,y)
 }
 
-// function method pairsIrec(nums: seq<nat>, k: nat, i: int): set<(nat, nat)> 
-//     requires k > 0
-//     requires -1 <= i < |nums|
-//     ensures pairsIrec(nums, k, i) == (set x: nat, y:nat | 0 <= x < i && 0 <= y < |nums| && satPairs(nums, k, x, y) :: (x,y))  + set z: nat | 0 <= z  <= i && satPairs(nums, k, z, i) :: (i,z)
-//     // ensures forall x,y :: 0 <= x < y < i && satPairs(nums, k, x, y) ==> (x,y) in pairsIrec(nums, k, i)
-// {
-//     if i == -1 then {} else pairsIrec(nums, k, i-1) + set x: nat | 0 <= x  <= i && satPairs(nums, k, x, i) :: (i,x)
-// }
 
+function pairsJ(nums: seq<nat>, k: nat, i: nat, j: nat): set<(nat, nat)> 
+    requires 0 <= i < |nums|
+    requires i < j
+    requires k > 0
+    // ensures forall x :: i < x < j < |nums| && satPairs(nums, k, i, x) ==> (i,x) in pairsJ(nums, k, i, j)
+{
+    set x: nat | i < x < j <= |nums| && satPairs(nums, k, i, x) :: (i,x)
+}
 
+lemma PairsIMaint(nums: seq<nat>, k: nat, i: nat) 
+    requires k > 0
+    requires 0 <= i <= |nums|-2
+    ensures pairsI(nums, k, i+1) == pairsI(nums, k, i)+pairsJ(nums, k, i, |nums|)
+{
+}
+    // forall pairs | pairs in pairsI(nums, k, i) 
+    //     ensures pairs in pairsI(nums, k, i+1)
+    // {
+
+    // }
+    // forall jpairs | jpairs in pairsJ(nums, k, i, |nums|)
+    //     ensures jpairs in pairsI(nums,k,i+1)
+    // {
+
+    // }
+
+    // forall pairs | pairs in pairsI(nums, k, i+1) 
+    //     ensures pairs in (pairsI(nums, k, i)+pairsJ(nums, k, i, |nums|))
+    // {
+    //     if pairs in pairsI(nums, k,i) {
+
+    //     }else if pairs in pairsJ(nums, k,i,|nums|) {
+
+    //     }else{
+    //         assert 0<= pairs.0 < i+1;
+    //         assert pairs.0 < pairs.1 <= |nums|-1;
+    //         if 0 <= pairs.0 < i {
+    //             assert pairs in pairsI(nums,k,i);
+    //         }
+
+    //         if pairs.0 == i {
+    //             assert pairs in pairsJ(nums,k,i, |nums|);
+    //         }
+    //         assert false;
+    //     }
+    // }
 
 method Test2() {
-    var test := [3,1,2,2,2,1,3];
+    var test := [4,1,2,2,2,4,4];
+    assert |test| == 7;
     var pairs := pairsI(test, 2, 0);
     assert pairs == {};
+    var testpairs := pairsI(test, 2, |test|-2);
+    assert (5,6) in pairsJ(test,2,|test|-2,|test|);
+    assert (0,6) in testpairs;
 
 }
 
-function method satPairs(nums: seq<nat>, k: nat, a: nat, b: nat): bool
+function satPairs(nums: seq<nat>, k: nat, a: nat, b: nat): bool
     requires k > 0
-    requires a <= b < |nums| 
+    requires a < b < |nums| 
 {
     nums[a] == nums[b] && (a*b) % k == 0
 }
 
-function countSeqPairs(nums: seq<nat>, k: nat, start: nat,  stop: nat): nat 
-    requires k > 0
-    requires start <= stop <= |nums|
-    decreases |nums|-start, |nums|-stop
-{
-    if start > stop || stop >= |nums| || start >= |nums| then 0 else 
-    if stop < |nums| then (if satPairs(nums, k, start, stop) then 1 + countSeqPairs(nums, k, start, stop+1) else countSeqPairs(nums, k, start, stop+1)) else countSeqPairs(nums, k, start+1, stop+2)
-
-}
-
-function countSeqSlice(nums: seq<nat>, k: nat, start: nat, stop: nat): nat 
-    requires k > 0
-    requires start <= stop <= |nums|
-    decreases |nums| - stop
-{
-    if start > stop || stop >= |nums| then 0
-    else if satPairs(nums, k, start, stop) then 1 + countSeqSlice(nums, k, start, stop+1) else countSeqSlice(nums, k, start, stop+1)
-}
-
-// function countSeqSlices(nums: seq<nat>, k: nat, begin: nat, end: nat): nat
-//     requires k > 0
-//     requires 0 <= begin < |nums|
-//     requires 0 <= end <= |nums|
-//     ensures countSeqSlices(nums, k, begin, end) == countSeqSlices(nums, k, begin+1, end) + countSeqSlice(nums, k, begin, |nums|) 
-//     decreases end-begin
-// {
-//     if begin >= end || end <= 0 then 0 else countSeqSlices(nums, k, begin+1, end) + countSeqSlice(nums, k, begin, |nums|)    
-// }
-
-
 method countPairs(nums: seq<nat>, k: nat) returns (count: nat) 
     requires k > 0
-    requires |nums| >= 2;
+    requires |nums| >= 2
+    ensures count == |pairs(nums,k)|
 {
     count := 0;
-    //ghost var cpairs: set<(nat, nat)> := {};
-    for i : nat := 0 to |nums|-2 
-        invariant count >= 0
-        //invariant cpairs == pairsI(nums, k, i)
+    ghost var cpairs: set<(nat, nat)> := {};
+    for i : nat := 0 to |nums|-1 
+        invariant cpairs == pairsI(nums, k, i)
+        invariant count == |pairsI(nums, k, i)|
     {
-        // ghost var occount := count;
-        // ghost var increment := 0;
-        for j : nat := i+1 to |nums|-1 
-            invariant count >= 0
-            // invariant count == occount + increment
-            // invariant satPairs(nums, k, i, j) ==> increment == increment + 1 
-            // invariant count == 0 || satPairs(nums, k, i, j) ==> count == count + 1
-            //invariant cpairs == pairsI(nums, k, i) + set z: nat | i+1 <= z <= j && satPairs(nums, k, i, z) :: (i, z)
+        ghost var occount := count;
+        ghost var increment := 0;
+        ghost var pairset: set<(nat, nat)> := {};
+        var j : nat := i+1;
+        while j < |nums| 
+            invariant i+1 <= j <= |nums|
+            invariant pairset == pairsJ(nums,k, i,j)
+            invariant increment == |pairsJ(nums,k,i,j)|
+            invariant count == occount + increment
+            // invariant cpairs !! pairset
         {
-            // ghost var currcount := count;
-            // if nums[i] == nums[j] && (i*j)% k == 0 {
             if  i+1 <= j <= j && satPairs(nums, k, i, j) {
-                // increment := increment + 1;
-                //cpairs := {(i,j)}+cpairs;
+                increment := increment + 1;
+                pairset := pairset+{(i,j)};
                 count := count + 1;
             }
+            j := j + 1;
         }
+        // assert j==|nums|;
+        PairsIMaint(nums,k,i);
+        cpairs := cpairs + pairset;
     }
+    assert pairsI(nums,k, |nums|-1) == pairs(nums,k);
 }
 
 // method Test() {
