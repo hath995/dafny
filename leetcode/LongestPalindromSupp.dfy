@@ -92,6 +92,39 @@ module Palindrome {
         PalindromeRight(next);
     }
 
+    function rep(c: char, count: nat): string 
+        ensures |rep(c, count)| == count
+        ensures forall i :: 0 <= i < count ==> rep(c, count)[i] == c
+        ensures multiset(rep(c, count))[c] == count
+    {
+        if count == 0 then "" else [c]+rep(c, count - 1)
+    }
+
+    lemma PalindromePlus(s: string, c: char) 
+        requires IsPalindrome(s)
+        ensures IsPalindrome([c]+s+[c])
+    {
+        ReverseIndexAll(s);
+        ReverseIndexAll([c]+s+[c]);
+    }
+
+    lemma PalindromePlusRep(s: string, c: char, count: nat) 
+        requires IsPalindrome(s)
+        ensures IsPalindrome(rep(c, count)+s+rep(c, count))
+    {
+        ReverseIndexAll(s);
+        ReverseIndexAll(rep(c, count)+s+rep(c, count));
+    }
+
+    lemma PalindromePlusRepOdd(s: string, c: char, count: nat) 
+        requires count > 0 && count % 2 == 1
+        requires IsPalindrome(s)
+        requires |s| % 2 == 0
+        ensures IsPalindrome(s[0..|s|/2]+rep(c, count)+s[|s|/2..])
+    {
+        ReverseIndexAll(s);
+        ReverseIndexAll(s[0..|s|/2]+rep(c, count)+s[|s|/2..]);
+    }
     lemma MinimumIndexExists(s: string, c: char) returns (i: int)
         requires c in s
         requires multiset(s)[c] > 0
@@ -450,6 +483,71 @@ module Palindrome {
         }
     }
 
+    lemma PalindromeStringExists(ms: multiset<char>) returns (s: string)
+        requires allEven(ms) || exists k :: charCountOdd(k, ms) && forall y :: y != k && y in ms ==>charCountEven(y, ms)
+        ensures multiset(s) == ms
+        ensures IsPalindrome(s)
+        ensures allEven(ms) ==> |s| % 2 == 0
+        ensures !allEven(ms) ==> |s| % 2 == 1
+    {
+        if ms != multiset{} {
+            var x :|  x in ms;
+            if charCountEven(x, ms) {
+                if allEven(ms) {
+                    var s' := PalindromeStringExists(ms[x := 0]);
+                    PalindromePlusRep(s', x, ms[x]/2);
+                    s := rep(x, ms[x]/2)+s'+rep(x, ms[x]/2);
+                    assert ms == multiset(s);
+                    assert |s'| % 2 == 0;
+                    calc {
+                        |s|;
+                        |rep(x, ms[x]/2)|+|s'|+|rep(x, ms[x]/2)|;
+                        |rep(x, ms[x]/2)|+|rep(x, ms[x]/2)|+|s'|;
+                        ms[x]+|s'|;
+                    }
+                    assert |s| % 2 == 0;
+                }else{
+                    assert exists k :: charCountOdd(k, ms) && forall y :: y != k && y in ms ==> charCountEven(y, ms);
+                    var k :| charCountOdd(k, ms);
+                    assert charCountOdd(k, ms[x:=0]) && forall y :: y != k && y in ms[x := 0] ==> charCountEven(y, ms[x := 0]);
+                    var s' := PalindromeStringExists(ms[x := 0]);
+                    PalindromePlusRep(s', x, ms[x]/2);
+                    s := rep(x, ms[x]/2)+s'+rep(x, ms[x]/2);
+                    assert ms == multiset(s);
+                    assert |s'| % 2 == 1;
+                    calc {
+                        |s|;
+                        |rep(x, ms[x]/2)|+|s'|+|rep(x, ms[x]/2)|;
+                        |rep(x, ms[x]/2)|+|rep(x, ms[x]/2)|+|s'|;
+                        ms[x]+|s'|;
+                    }
+                    assert |s| % 2 == 1;
+                }
+
+            }else{
+                var s' := PalindromeStringExists(ms[x := 0]);
+                assert s' == s'[0..|s'|/2]+s'[|s'|/2..];
+                PalindromePlusRepOdd(s', x, ms[x]);
+                s := s'[0..|s'|/2]+rep(x, ms[x])+s'[|s'|/2..];
+                assert ms == multiset(s);
+                assert |s'| % 2 == 0;
+                calc {
+                    |s|;
+                    |s'[0..|s'|/2]|+|rep(x, ms[x])|+|s'[|s'|/2..]|;
+                    |s'[0..|s'|/2]|+|s'[|s'|/2..]|+|rep(x, ms[x])|;
+                    |s'|+|rep(x, ms[x])|;
+                }
+                assert |s| % 2 == 1;
+            }
+        }else{
+            s := "";
+            assert ms == multiset(s);
+            assert allEven(multiset(s));
+            assert IsPalindrome(s);
+            assert |s| % 2 == 0;
+        }
+    }
+
 
     lemma PalindromeNotPalindrome(s: string, c: char)
         requires IsPalindrome(s)
@@ -635,7 +733,16 @@ module Palindrome {
 
             assert |ss| <= |lpm|;
         }
+        
 
+    }
+
+    lemma LongestPalindromeFromString(s: string)
+        ensures exists s' :: IsPalindrome(s') && forall ss :: ss in allPalindromSubStrings(s) ==> |ss| <= |s'|
+    {
+        var lpm := largePalindromeMultiset(s);
+        lpmGreaterAllPalindromes(s);
+        var s' := PalindromeStringExists(lpm);
     }
                 // if keychar !in lpm {
                 //     assert multiset(str)[keychar] == 1;

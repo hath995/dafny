@@ -1,7 +1,9 @@
 include "../lib/seq.dfy"
 include "LongestPalindromSupp.dfy"
+include "../FunctionalAlgorithms/insertionSort.dfy"
 import opened Palindrome
 import opened Seq
+import opened InsertionSort
 /*
 function toMultiset(s: string): Map<string, number> {
     const s_mset: Map<string, number> = new Map();
@@ -35,47 +37,6 @@ function longestPalindrome(s: string): number {
     return length;
 }
 */
-ghost function allStrings(ms: multiset<char>): iset<string> {
-    iset ss: string | multiset(ss) <= ms
-}
-
-predicate IsPalindrome(s: string) {
-    s == reverse(s)
-}
-
-function rep(c: char, count: nat): string 
-    ensures |rep(c, count)| == count
-    ensures forall i :: 0 <= i < count ==> rep(c, count)[i] == c
-    ensures multiset(rep(c, count))[c] == count
-{
-    if count == 0 then "" else [c]+rep(c, count - 1)
-}
-
-lemma PalindromePlus(s: string, c: char) 
-    requires IsPalindrome(s)
-    ensures IsPalindrome([c]+s+[c])
-{
-    ReverseIndexAll(s);
-    ReverseIndexAll([c]+s+[c]);
-}
-
-lemma PalindromePlusRep(s: string, c: char, count: nat) 
-    requires IsPalindrome(s)
-    ensures IsPalindrome(rep(c, count)+s+rep(c, count))
-{
-    ReverseIndexAll(s);
-    ReverseIndexAll(rep(c, count)+s+rep(c, count));
-}
-
-lemma PalindromePlusRepOdd(s: string, c: char, count: nat) 
-    requires count > 0 && count % 2 == 1
-    requires IsPalindrome(s)
-    requires |s| % 2 == 0
-    ensures IsPalindrome(s[0..|s|/2]+rep(c, count)+s[|s|/2..])
-{
-    ReverseIndexAll(s);
-    ReverseIndexAll(s[0..|s|/2]+rep(c, count)+s[|s|/2..]);
-}
 
 lemma allOnesDistinct<T>(ss: seq<T>) 
     requires forall key :: key in ss ==> multiset(ss)[key] == 1
@@ -89,7 +50,24 @@ lemma allOnesDistinct<T>(ss: seq<T>)
     }
 }
 
-method longestPalindromePartial(s: string) returns (length: int, odds: seq<nat>, ghost oddKey: seq<char>, ghost pt: string, ghost ptMset: multiset<char>, ghost oddMset: multiset<char>) 
+method {:verify false} longestPalindrome(s: string) returns (length: int, ghost lpm: multiset<char>) 
+    ensures |lpm| == length 
+    ensures lpm == largePalindromeMultiset(s)
+    ensures exists s': string :: multiset(s') == lpm && IsPalindrome(s')
+    //ensures forall x :: x in allStrings(multiset(s)) ==> |s| <= |pt|
+{
+    var smset := multiset(s);
+    var odds: seq<nat> := [];
+    length := 0;
+    lpm := multiset{};
+    ghost var removed: multiset<char> := multiset{};
+    while smset != multiset{} 
+    {
+
+    }
+}
+
+method {:verify false} longestPalindromePartial(s: string) returns (length: int, odds: seq<nat>, ghost oddKey: seq<char>, ghost pt: string, ghost ptMset: multiset<char>, ghost oddMset: multiset<char>) 
     ensures IsPalindrome(pt)
     ensures |pt| % 2 == 0
     ensures |pt| == length
@@ -163,32 +141,42 @@ method longestPalindromePartial(s: string) returns (length: int, odds: seq<nat>,
     allOnesDistinct(oddKey);
 }
 
-method  longestPalindromePieces(s: string) returns (length: int, ghost pt: string, ghost ptmset: multiset<char>) 
+method {:verify false} longestPalindromePieces(s: string) returns (length: int, ghost pt: string, ghost ptmset: multiset<char>) 
     ensures |pt| == length 
     ensures IsPalindrome(pt)
     ensures multiset(pt) <= multiset(s) 
     ensures multiset(pt) == ptmset
+    // ensures largePalindromeMultiset(s) == ptmset
     //ensures forall x :: x in allStrings(multiset(s)) ==> |s| <= |pt|
 {
-    var plength, odds, oddKey, ppt, ptMset, oddMset :=longestPalindromePartial(s);
+    var plength, odds, oddKey, ppt, ptMset, oddMset := longestPalindromePartial(s);
     ptmset := ptMset;
     length := plength;
     pt := ppt;
+    var sodds := isort(odds);
+    assert multiset(odds) == multiset(sodds);
+    assert |odds| == |sodds|;
+    isortProperties(odds);
+    // assert ptMset + multiset(sodds) == multiset(s);
 
-    if |odds| > 0 {
-        assert odds[0] in odds;
-        PalindromePlusRepOdd(pt, oddKey[0], odds[0]);
+    assert forall count :: count in sodds ==> count in odds;
+    assert forall count :: count in sodds ==> count > 0 && count % 2 == 1;
+
+    if |sodds| > 0 {
+        assert sodds[0] in sodds;
+        // assert sodds[0] in odds;
+        PalindromePlusRepOdd(pt, oddKey[0], sodds[0]);
         assert pt == pt[0..|pt|/2] + pt[|pt|/2..];
-        pt := pt[0..|pt|/2]+rep(oddKey[0], odds[0])+pt[|pt|/2..];
+        pt := pt[0..|pt|/2]+rep(oddKey[0], sodds[0])+pt[|pt|/2..];
         assert IsPalindrome(pt);
-        length := length + odds[0];
+        length := length + sodds[0];
         assert forall i :: 1 <= i < |oddKey| ==> oddKey[i] !in ptMset;
 
-        ptMset := ptMset[oddKey[0] := odds[0]];
-        ptmset := ptmset[oddKey[0] := odds[0]];
+        ptMset := ptMset[oddKey[0] := sodds[0]];
+        ptmset := ptmset[oddKey[0] := sodds[0]];
         assert ptMset == multiset(pt);
         assert ptmset == multiset(pt);
-        assert ptMset <= multiset(s);
+        assert ptmset <= multiset(s);
         assert length == |pt|;
         // assert forall count :: count in odds ==> count > 0 && count % 2 == 1;
         // assert odds == [odds[0]]+odds[1..];
@@ -201,36 +189,36 @@ method  longestPalindromePieces(s: string) returns (length: int, ghost pt: strin
         }
         odds := odds[1..];
         // assert forall count :: count in odds ==> count > 0 && count % 2 == 1;
-        for i := 0 to |odds| 
-            invariant forall count :: count in odds ==> count > 0 && count % 2 == 1
-            invariant IsPalindrome(pt)
-            invariant length == |pt|
+        // for i := 0 to |odds| 
+        //     invariant forall count :: count in odds ==> count > 0 && count % 2 == 1
+        //     invariant IsPalindrome(pt)
+        //     invariant length == |pt|
 
-            invariant forall k :: i < k < |oddKey| ==> oddKey[k] !in ptMset
-            invariant ptMset == multiset(pt)
-            invariant ptmset == multiset(pt)
-            invariant ptMset <= multiset(s)
-        {
-            assert odds[i] in odds; 
-            ghost var repchar := rep(oddKey[i+1], (odds[i]-1)/2);
+        //     invariant forall k :: i < k < |oddKey| ==> oddKey[k] !in ptMset
+        //     invariant ptMset == multiset(pt)
+        //     invariant ptmset == multiset(pt)
+        //     invariant ptMset <= multiset(s)
+        // {
+        //     assert odds[i] in odds; 
+        //     ghost var repchar := rep(oddKey[i+1], (odds[i]-1)/2);
 
-            calc {
-                multiset(repchar+repchar)+multiset(pt);
-                multiset(repchar+pt+repchar);
-            }
-            assert multiset(repchar+repchar)[oddKey[i+1]] == odds[i]-1;
-            // assume oddKey[i+1] !in ptMset;
-            assert multiset(repchar+repchar)+multiset(pt) == ptMset[oddKey[i+1] := odds[i]-1];
-            PalindromePlusRep(pt, oddKey[i+1], (odds[i]-1)/2);
-            pt := repchar+pt+repchar;
-            length := length + odds[i] - 1;
-            ptMset := ptMset[oddKey[i+1] := odds[i]-1];
-            ptmset := ptmset[oddKey[i+1] := odds[i]-1];
-        }
+        //     calc {
+        //         multiset(repchar+repchar)+multiset(pt);
+        //         multiset(repchar+pt+repchar);
+        //     }
+        //     assert multiset(repchar+repchar)[oddKey[i+1]] == odds[i]-1;
+        //     // assume oddKey[i+1] !in ptMset;
+        //     assert multiset(repchar+repchar)+multiset(pt) == ptMset[oddKey[i+1] := odds[i]-1];
+        //     PalindromePlusRep(pt, oddKey[i+1], (odds[i]-1)/2);
+        //     pt := repchar+pt+repchar;
+        //     length := length + odds[i] - 1;
+        //     ptMset := ptMset[oddKey[i+1] := odds[i]-1];
+        //     ptmset := ptmset[oddKey[i+1] := odds[i]-1];
+        // }
     }
 }
 
-method {:verify false} longestPalindrome(s: string) returns (length: int, ghost pt: string, ptmset: multiset<char>) 
+method {:verify false } longestPalindromeOrig(s: string) returns (length: int, ghost pt: string) 
     ensures |pt| == length 
     ensures IsPalindrome(pt)
     ensures multiset(pt) <= multiset(s) 
