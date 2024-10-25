@@ -96,10 +96,42 @@ function method matAdd(left: Matrix, right: Matrix): Matrix
     Matrice(seq(left.rows, i requires 0 <= i < left.rows => seq(left.columns, j requires 0 <= j < left.columns => left.vals[i][j] + right.vals[i][j])), left.rows, left.columns)
 }
 
-function method Sum(vals: seq<real>): real
-{
-    if |vals| == 0 then 0.0 else vals[0] + Sum(vals[1..])
-}
+function Sum(vals: seq<real>): real
+    {
+        if |vals| == 0 then 0.0 else vals[0] + Sum(vals[1..])
+    } by method {
+        var sum := 0.0;
+        for i := 0 to |vals| 
+            invariant sum == Sum(vals[..i])
+        {
+            assert sum == Sum(vals[..i]);
+            assert vals[..(i+1)] == vals[..i]+[vals[i]];
+            sumSeqLemma(vals[..i],[vals[i]]);
+            sum := sum + vals[i];
+        }
+        assert vals[..|vals| ] == vals;
+        return sum;
+    }
+
+    lemma sumSeqLemma(a: seq<real>, b: seq<real>) 
+		ensures Sum(a+b) == Sum(a)+Sum(b)
+	{
+		if a == [] {
+			assert a + b == b;
+		}
+		else {
+			sumSeqLemma(a[1..], b);
+			calc {
+			Sum(a + b);
+			{
+				assert (a + b)[0] == a[0];
+				assert (a + b)[1..] == a[1..] + b;
+			}
+			a[0] + Sum(a[1..] + b);
+			a[0] + Sum(a[1..]) + Sum(b);
+			}
+		}
+	}
 
 function method matMul(left: Matrix, right: Matrix): Matrix
     requires isMatrix(left) && isMatrix(right)
